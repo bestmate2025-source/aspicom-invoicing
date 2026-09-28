@@ -1,0 +1,17 @@
+﻿.env
+venv/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+uploads/*
+logs/
+*.log
+.DS_Store
+.idea/
+.vscode/
+/invoicing.html
+/invoicing2.html
+/invoicing_OLD.html
+/invoicing_working_v1.html
+/assets/
