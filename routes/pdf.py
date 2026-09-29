@@ -209,3 +209,26 @@ def import_pdf():
         return api_response(error="db_error", message=str(exc)), 500
 
     return api_response(data=parsed_row.to_dict()), 201
+
+
+@pdf_bp.route("/parsed-invoices", methods=["GET"])
+def list_parsed_invoices():
+    """GET /api/parsed-invoices — list all imported supplier invoices."""
+    invoices = ParsedInvoice.query.order_by(ParsedInvoice.imported_at.desc()).all()
+    return api_response(data=[inv.to_dict() for inv in invoices]), 200
+
+
+@pdf_bp.route("/parsed-invoices/<int:parsed_id>", methods=["GET"])
+def get_parsed_invoice(parsed_id: int):
+    """GET /api/parsed-invoices/<id> — fetch one imported invoice."""
+    invoice = ParsedInvoice.query.get(parsed_id)
+    if invoice is None:
+        return api_response(error="not_found", message=f"No parsed invoice with id {parsed_id}."), 404
+    return api_response(data=invoice.to_dict()), 200
+
+
+@pdf_bp.route("/import-log", methods=["GET"])
+def list_import_log():
+    """GET /api/import-log — list import attempts."""
+    logs = ImportLog.query.order_by(ImportLog.imported_at.desc()).limit(100).all()
+    return api_response(data=[log.to_dict() for log in logs]), 200

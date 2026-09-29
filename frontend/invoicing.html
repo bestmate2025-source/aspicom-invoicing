@@ -175,6 +175,7 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
     <button class="nav-item" data-view="invoices">Invoices</button>
     <button class="nav-item" data-view="clients">Clients</button>
     <button class="nav-item" data-view="inventory">Inventory</button>
+    <button class="nav-item" data-view="supplier">Supplier Bills</button>
     <button class="nav-item" data-view="company">Company</button>
   </nav>
 </div>
@@ -223,6 +224,27 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
     </div>
     <div class="clients-list" id="client-rows"></div>
   </div>
+
+  <div id="view-supplier" style="display:none;">
+  <h1>Supplier Bills</h1>
+  <p class="lede">Invoices received from suppliers (imported from PDFs).</p>
+  <div class="toolbar" style="justify-content:flex-end;">
+    <button class="btn ghost" id="refresh-supplier-btn">Refresh</button>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Supplier</th>
+        <th>Invoice #</th>
+        <th>Date</th>
+        <th>LPO #</th>
+        <th>Total</th>
+        <th>Imported</th>
+      </tr>
+    </thead>
+    <tbody id="supplier-rows"></tbody>
+  </table>
+</div>
 
   <div id="view-inventory" style="display:none;">
     <h1>Inventory</h1>
@@ -619,7 +641,7 @@ document.querySelectorAll('.nav-item').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    ['dashboard', 'invoices', 'clients', 'inventory', 'company'].forEach(v => {
+    ['dashboard', 'invoices', 'clients', 'inventory', 'supplier', 'company'].forEach(v => {
       $('#view-' + v).style.display = (v === btn.dataset.view) ? 'block' : 'none';
     });
   });
@@ -1105,11 +1127,34 @@ $('#confirm-import-btn').addEventListener('click', async () => {
 document.querySelectorAll('.overlay').forEach(ov => {
   ov.addEventListener('click', (e) => { if (e.target === ov) ov.classList.remove('show'); });
 });
+// =========================================================
+// SUPPLIER BILLS (imported PDFs)
+// =========================================================
+async function loadSupplierBills() {
+  try {
+    const parsed = await api('/api/parsed-invoices');
+    const rows = parsed.map(inv => `
+      <tr>
+        <td class="name">${inv.supplier_name || '—'}</td>
+        <td>${inv.invoice_number || '—'}</td>
+        <td>${inv.date || '—'}</td>
+        <td>${inv.lpo_number || '—'}</td>
+        <td>${fmt(parseFloat(inv.grand_total) || 0)}</td>
+        <td>${inv.imported_at ? inv.imported_at.slice(0, 10) : '—'}</td>
+      </tr>
+    `).join('');
+    $('#supplier-rows').innerHTML = rows || '<tr><td colspan="6" class="empty">No supplier invoices yet. Go to Invoices → "Import supplier PDF" to add one.</td></tr>';
+  } catch (err) {
+    toastErr('Failed to load supplier bills: ' + err.message);
+  }
+}
 
+$('#refresh-supplier-btn').addEventListener('click', loadSupplierBills);
 // =========================================================
 // INIT
 // =========================================================
 loadAll();
+loadSupplierBills();
 </script>
 </body>
 </html>
