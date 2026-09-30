@@ -1,9 +1,9 @@
-﻿"""Flask app factory for the Aspicom invoicing API.
+"""Flask app factory for the Aspicom invoicing API.
 
 Run locally with:
     python app.py
 
-Reads DB connection details from a .env file (see .env.example) â€” never
+Reads DB connection details from a .env file (see .env.example) — never
 hardcode credentials here.
 """
 
@@ -19,7 +19,7 @@ from extensions import db
 from routes.clients import clients_bp
 from routes.company import company_bp
 from routes.inventory import inventory_bp
-from routes.invoices import invoices_bp
+from routes.invoices import invoices_bp, payments_bp
 from routes.pdf import pdf_bp
 
 load_dotenv()
@@ -45,7 +45,7 @@ def create_app() -> Flask:
     )
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-    # Where uploaded logo/stamp images land â€” read from env so moving to a
+    # Where uploaded logo/stamp images land — read from env so moving to a
     # cloud bucket later is a config change, not a code change (per the
     # Q3 answer from the schema-approval stage).
     app.config["UPLOAD_FOLDER"] = os.environ.get("UPLOAD_FOLDER", "uploads")
@@ -53,14 +53,18 @@ def create_app() -> Flask:
 
     db.init_app(app)
 
-    # Local dev only â€” CORS wide open so the standalone HTML frontend
+    # Local dev only — CORS wide open so the standalone HTML frontend
     # (served separately, e.g. via `python -m http.server` or opened as a
     # file) can call this API. Tighten to specific origins before any real
     # deployment.
-    CORS(app)
 
+    CORS(app, resources={r"/api/*": {"origins": "*"}},
+     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+     allow_headers=["Content-Type", "Authorization"])
+    
     app.register_blueprint(clients_bp, url_prefix="/api/clients")
     app.register_blueprint(invoices_bp, url_prefix="/api/invoices")
+    app.register_blueprint(payments_bp, url_prefix="/api")  # DELETE /api/payments/<id> — see routes/invoices.py
     app.register_blueprint(inventory_bp, url_prefix="/api/inventory")
     app.register_blueprint(company_bp, url_prefix="/api/company")
     app.register_blueprint(pdf_bp, url_prefix="/api")  # /api/parse-pdf, /api/import-pdf
@@ -83,7 +87,7 @@ def create_app() -> Flask:
 
     return app
 
+
 if __name__ == "__main__":
     app = create_app()
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    app.run(debug=True, port=5000)

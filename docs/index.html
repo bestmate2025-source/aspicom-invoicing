@@ -73,6 +73,7 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
 .status-Sent{background:var(--grey-soft); color:var(--sub);}
 .status-Draft{background:var(--grey-soft); color:var(--sub);}
 .status-Overdue{background:var(--amber-soft); color:var(--amber);}
+.status-Partial{background:var(--amber-soft); color:var(--amber);}
 .empty{padding:40px 20px; text-align:center; color:var(--sub); font-size:14px;}
 .overlay{position:fixed; inset:0; background:rgba(20,20,18,0.5); display:none; align-items:flex-start; justify-content:center; z-index:10; padding:24px 16px; overflow-y:auto; animation:fadeIn 0.15s ease-out;}
 .overlay.show{display:flex;}
@@ -104,8 +105,6 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
 .items-head{display:grid; grid-template-columns:2fr 1.2fr 1fr 1fr 0.6fr auto; gap:8px; font-size:11px; text-transform:uppercase; color:var(--sub); font-weight:600; margin-bottom:6px;}
 .totals-box{margin-top:10px; padding-top:10px; border-top:1px solid var(--line); display:flex; flex-direction:column; gap:4px; align-items:flex-end; font-size:14px;}
 .totals-box .grand{font-family:'Fraunces',serif; font-size:20px; font-weight:600;}
-
-/* Preview/print sheet */
 #print-overlay .modal{max-width:780px; padding:0; background:#fff; color:#111;}
 .sheet{padding:40px 44px; font-family:'Inter',sans-serif;}
 .sheet-top{display:flex; justify-content:space-between; align-items:flex-start; border-bottom:3px solid #B0473F; padding-bottom:14px; margin-bottom:18px;}
@@ -126,23 +125,16 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
 .sheet-stamp-box{border:1px dashed #bbb; border-radius:6px; width:140px; height:90px; display:flex; align-items:center; justify-content:center; font-size:11px; color:#999;}
 .sheet-sign-text{font-size:13px; line-height:1.6;}
 .print-actions{padding:16px 24px; border-top:1px solid #eee; display:flex; justify-content:flex-end; gap:8px;}
-
-/* Toast */
 #toast-stack{position:fixed; bottom:20px; right:20px; display:flex; flex-direction:column; gap:8px; z-index:100; max-width:340px;}
 .toast{padding:12px 16px; border-radius:8px; box-shadow:var(--shadow-lg); font-size:14px; font-weight:500; color:#fff; opacity:0; transform:translateY(10px); animation:toastIn 0.25s forwards; display:flex; align-items:center; gap:8px;}
 .toast.success{background:var(--pine);}
 .toast.error{background:var(--danger);}
 .toast.info{background:#2F3542;}
 @keyframes toastIn{to{opacity:1; transform:translateY(0);}}
-
-/* Offline banner */
 #offline-banner{display:none; background:var(--danger); color:#fff; padding:10px 20px; text-align:center; font-size:13px; font-weight:600;}
 #offline-banner.show{display:block;}
-
-/* Spinner */
 .spinner{display:inline-block; width:14px; height:14px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 0.8s linear infinite; vertical-align:middle;}
 @keyframes spin{to{transform:rotate(360deg);}}
-
 @media print{
   body *{visibility:hidden;}
   #print-overlay, #print-overlay *{visibility:visible;}
@@ -160,7 +152,7 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
   tbody tr{border:1px solid var(--line); border-radius:8px; margin-bottom:10px; padding:4px 0;}
   td{padding:6px 14px;}
   .grid2{grid-template-columns:1fr;}
-  .items-row, .items-head{grid-template-columns:1fr; }
+  .items-row, .items-head{grid-template-columns:1fr;}
 }
 </style>
 </head>
@@ -188,6 +180,8 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
       <div class="stat"><div class="stat-label">Outstanding</div><div class="stat-value" id="stat-outstanding">—</div></div>
       <div class="stat"><div class="stat-label">Overdue</div><div class="stat-value amber" id="stat-overdue">—</div></div>
       <div class="stat"><div class="stat-label">Paid this month</div><div class="stat-value pine" id="stat-paid">—</div></div>
+      <div class="stat"><div class="stat-label">Total Collected</div><div class="stat-value pine" id="stat-collected">—</div></div>
+      <div class="stat"><div class="stat-label">Total Outstanding</div><div class="stat-value amber" id="stat-outstanding-total">—</div></div>
     </div>
     <div class="toolbar"><h2 style="font-family:'Fraunces',serif; font-weight:500; font-size:18px; margin:0;">Recent invoices</h2></div>
     <table><thead><tr><th>Client</th><th>Invoice #</th><th>Total</th><th>Due</th><th>Status</th></tr></thead>
@@ -205,13 +199,14 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
         <button class="tab" data-filter="Sent">Sent</button>
         <button class="tab" data-filter="Paid">Paid</button>
         <button class="tab" data-filter="Overdue">Overdue</button>
+        <button class="tab" data-filter="Partial">Partial</button>
       </div>
       <div style="display:flex; gap:8px;">
         <button class="btn ghost" id="import-pdf-btn">📄 Import supplier PDF</button>
         <button class="btn" id="new-invoice-btn">New invoice</button>
       </div>
     </div>
-    <table><thead><tr><th>Client</th><th>Invoice #</th><th>Issued</th><th>Due</th><th>Total</th><th>Status</th></tr></thead>
+    <table><thead><tr><th>Client</th><th>Invoice #</th><th>Issued</th><th>Due</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th></tr></thead>
       <tbody id="inv-rows"></tbody>
     </table>
   </div>
@@ -226,25 +221,25 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
   </div>
 
   <div id="view-supplier" style="display:none;">
-  <h1>Supplier Bills</h1>
-  <p class="lede">Invoices received from suppliers (imported from PDFs).</p>
-  <div class="toolbar" style="justify-content:flex-end;">
-    <button class="btn ghost" id="refresh-supplier-btn">Refresh</button>
+    <h1>Supplier Bills</h1>
+    <p class="lede">Invoices received from suppliers (imported from PDFs).</p>
+    <div class="toolbar" style="justify-content:flex-end;">
+      <button class="btn ghost" id="refresh-supplier-btn">Refresh</button>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Supplier</th>
+          <th>Invoice #</th>
+          <th>Date</th>
+          <th>LPO #</th>
+          <th>Total</th>
+          <th>Imported</th>
+        </tr>
+      </thead>
+      <tbody id="supplier-rows"></tbody>
+    </table>
   </div>
-  <table>
-    <thead>
-      <tr>
-        <th>Supplier</th>
-        <th>Invoice #</th>
-        <th>Date</th>
-        <th>LPO #</th>
-        <th>Total</th>
-        <th>Imported</th>
-      </tr>
-    </thead>
-    <tbody id="supplier-rows"></tbody>
-  </table>
-</div>
 
   <div id="view-inventory" style="display:none;">
     <h1>Inventory</h1>
@@ -267,7 +262,7 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
       <div class="field"><label>Phone</label><input type="text" id="co-phone"></div>
       <div class="field"><label>Email</label><input type="email" id="co-email"></div>
       <div class="field"><label>Website</label><input type="text" id="co-website"></div>
-      <div class="field"><label>Signed by (name/title printed above the stamp)</label><input type="text" id="co-signee" placeholder="e.g. Accounts"></div>
+      <div class="field"><label>Signed by</label><input type="text" id="co-signee" placeholder="e.g. Accounts"></div>
       <div class="field"><label>Company logo</label><input type="file" accept="image/*" id="co-logo-file">
         <div style="margin-top:8px;"><img id="co-logo-preview" style="max-height:60px; display:none; border:1px solid var(--line); border-radius:4px;"></div>
       </div>
@@ -308,6 +303,30 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
         <div class="grand">Total: <span id="calc-total">$0.00</span></div>
       </div>
 
+      <div class="section-title">Payments</div>
+      <div id="payments-section" style="background:var(--grey-soft); padding:14px; border-radius:8px; margin-bottom:14px;">
+        <div style="display:flex; gap:20px; font-size:13px; margin-bottom:10px;">
+          <div><strong>Total:</strong> <span id="pay-total">$0.00</span></div>
+          <div><strong>Paid:</strong> <span id="pay-paid">$0.00</span></div>
+          <div><strong>Balance:</strong> <span id="pay-balance">$0.00</span></div>
+        </div>
+        <div id="pay-rows-wrap">
+          <table style="background:transparent; border:none; box-shadow:none; width:100%; font-size:12px;">
+            <thead>
+              <tr>
+                <th style="border:none; padding:4px 8px; font-size:10px;">#</th>
+                <th style="border:none; padding:4px 8px; font-size:10px;">Date</th>
+                <th style="border:none; padding:4px 8px; font-size:10px;">Amount</th>
+                <th style="border:none; padding:4px 8px; font-size:10px;">Method</th>
+                <th style="border:none; padding:4px 8px; font-size:10px;"></th>
+              </tr>
+            </thead>
+            <tbody id="pay-rows"></tbody>
+          </table>
+        </div>
+        <button type="button" class="btn ghost sm" id="add-payment-btn" style="margin-top:10px;">+ Record Payment</button>
+      </div>
+
       <div class="section-title">Status &amp; notes</div>
       <div class="grid2">
         <div class="field"><label>Status</label>
@@ -323,6 +342,48 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
           <button type="button" class="btn ghost" id="download-pdf-btn" style="display:none;">⬇ PDF</button>
           <button type="button" class="btn ghost" id="cancel-invoice-btn">Cancel</button>
           <button type="submit" class="btn">Save</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="overlay" id="payment-overlay">
+  <div class="modal" style="max-width:400px;">
+    <h2>Record Payment</h2>
+    <form id="payment-form">
+      <div class="field">
+        <label>Amount</label>
+        <input type="number" id="p-amount" step="0.01" min="0.01" required>
+      </div>
+      <div class="field">
+        <label>Paid date</label>
+        <input type="date" id="p-date" required>
+      </div>
+      <div class="field">
+        <label>Payment method</label>
+        <select id="p-method">
+          <option value="">— Select —</option>
+          <option value="cash">Cash</option>
+          <option value="bank_transfer">Bank Transfer</option>
+          <option value="card">Card</option>
+          <option value="cheque">Cheque</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Reference</label>
+        <input type="text" id="p-reference" placeholder="e.g. CASH-001">
+      </div>
+      <div class="field">
+        <label>Notes</label>
+        <textarea id="p-notes"></textarea>
+      </div>
+      <div class="modal-actions">
+        <div></div>
+        <div class="right">
+          <button type="button" class="btn ghost" id="cancel-payment-btn">Cancel</button>
+          <button type="submit" class="btn">Save Payment</button>
         </div>
       </div>
     </form>
@@ -401,9 +462,6 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
 <div id="toast-stack"></div>
 
 <script>
-// =========================================================
-// API CLIENT — all backend communication goes through these
-// =========================================================
 const API_URL = 'https://aspicom-invoicing-production.up.railway.app';
 
 async function api(path, options = {}) {
@@ -429,9 +487,6 @@ function showOffline(on) {
   document.getElementById('offline-url').textContent = API_URL;
 }
 
-// =========================================================
-// TOAST
-// =========================================================
 function toast(msg, kind = 'info', ms = 3000) {
   const stack = document.getElementById('toast-stack');
   const el = document.createElement('div');
@@ -443,9 +498,6 @@ function toast(msg, kind = 'info', ms = 3000) {
 const toastOk = (m) => toast(`✓ ${m}`, 'success');
 const toastErr = (m) => toast(`✗ ${m}`, 'error', 5000);
 
-// =========================================================
-// STATE
-// =========================================================
 let invoices = [];
 let clients = [];
 let inventory = [];
@@ -453,12 +505,12 @@ let company = {};
 let editingInvoiceId = null;
 let editingClientId = null;
 let editingInvItemId = null;
+let editingPaymentInvoiceId = null;
 let itemCounter = 0;
 
 const $ = s => document.querySelector(s);
 const fmt = n => '$' + Number(n || 0).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
 
-// Map API invoice shape → UI shape
 function apiInvToUi(inv) {
   return {
     id: inv.id,
@@ -473,6 +525,8 @@ function apiInvToUi(inv) {
     subtotal: parseFloat(inv.subtotal) || 0,
     vat: parseFloat(inv.vat) || 0,
     total: parseFloat(inv.total) || 0,
+    amount_paid: parseFloat(inv.amount_paid) || 0,
+    balance: parseFloat(inv.balance) || 0,
     items: (inv.items || []).map(it => ({
       id: it.id,
       name: it.product_name,
@@ -484,7 +538,6 @@ function apiInvToUi(inv) {
   };
 }
 
-// Map UI invoice shape → API payload
 function uiInvToApi(ui) {
   return {
     client_id: parseInt(ui.clientId),
@@ -504,39 +557,36 @@ function uiInvToApi(ui) {
   };
 }
 
-// =========================================================
-// COMPUTED HELPERS
-// =========================================================
-function invoiceTotals(inv) {
-  return {
-    subtotal: inv.subtotal || 0,
-    vat: inv.vat || 0,
-    total: inv.total || 0,
-  };
-}
 function effectiveStatus(inv) {
   if (inv.status === 'Sent' && inv.due && new Date(inv.due) < new Date(new Date().toDateString())) return 'Overdue';
   return inv.status;
 }
+
+function displayStatus(inv) {
+  if (inv.amount_paid > 0 && inv.amount_paid < inv.total) return 'Partial';
+  if (inv.amount_paid >= inv.total && inv.total > 0) return 'Paid';
+  return effectiveStatus(inv);
+}
+
 function barClass(status) {
   if (status === 'Paid') return 'bar-pine';
-  if (status === 'Overdue') return 'bar-amber';
+  if (status === 'Overdue' || status === 'Partial') return 'bar-amber';
   return 'bar-grey';
 }
+
 function clientName(id) {
   const c = clients.find(c => c.id === id);
   return c ? c.name : '—';
 }
 
-// =========================================================
-// RENDER
-// =========================================================
 function renderStats() {
-  let outstanding = 0, overdue = 0, paid = 0;
+  let outstanding = 0, overdue = 0, paid = 0, collected = 0, totalOutstanding = 0;
   const now = new Date();
   invoices.forEach(inv => {
     const st = effectiveStatus(inv);
     const { total } = invoiceTotals(inv);
+    collected += inv.amount_paid || 0;
+    totalOutstanding += inv.balance || 0;
     if (st === 'Sent' || st === 'Overdue') outstanding += total;
     if (st === 'Overdue') overdue += total;
     if (st === 'Paid' && inv.issued) {
@@ -547,13 +597,19 @@ function renderStats() {
   $('#stat-outstanding').textContent = fmt(outstanding);
   $('#stat-overdue').textContent = fmt(overdue);
   $('#stat-paid').textContent = fmt(paid);
+  $('#stat-collected').textContent = fmt(collected);
+  $('#stat-outstanding-total').textContent = fmt(totalOutstanding);
+}
+
+function invoiceTotals(inv) {
+  return { subtotal: inv.subtotal || 0, vat: inv.vat || 0, total: inv.total || 0 };
 }
 
 function renderDashboard() {
   renderStats();
   const rows = [...invoices].sort((a, b) => new Date(b.issued || 0) - new Date(a.issued || 0)).slice(0, 6);
   $('#dash-rows').innerHTML = rows.length ? rows.map(inv => {
-    const st = effectiveStatus(inv);
+    const st = displayStatus(inv);
     const { total } = invoiceTotals(inv);
     return `<tr class="bar ${barClass(st)}"><td class="name">${clientName(inv.clientId)}</td><td>${inv.invoiceNumber || '—'}</td><td>${fmt(total)}</td><td>${inv.due || '—'}</td><td><span class="status-pill status-${st}">${st}</span></td></tr>`;
   }).join('') : `<tr><td colspan="5" class="empty">No invoices yet — create your first one from the Invoices tab.</td></tr>`;
@@ -562,13 +618,13 @@ function renderDashboard() {
 let currentFilter = 'All';
 function renderInvoices() {
   const rows = invoices
-    .filter(inv => currentFilter === 'All' || effectiveStatus(inv) === currentFilter)
+    .filter(inv => currentFilter === 'All' || displayStatus(inv) === currentFilter || effectiveStatus(inv) === currentFilter)
     .sort((a, b) => new Date(b.issued || 0) - new Date(a.issued || 0));
   $('#inv-rows').innerHTML = rows.length ? rows.map(inv => {
-    const st = effectiveStatus(inv);
+    const st = displayStatus(inv);
     const { total } = invoiceTotals(inv);
-    return `<tr class="bar ${barClass(st)}" data-id="${inv.id}"><td class="name">${clientName(inv.clientId)}</td><td>${inv.invoiceNumber || '—'}</td><td>${inv.issued || '—'}</td><td>${inv.due || '—'}</td><td>${fmt(total)}</td><td><span class="status-pill status-${st}">${st}</span></td></tr>`;
-  }).join('') : `<tr><td colspan="6" class="empty">Nothing here. Try a different filter or add an invoice.</td></tr>`;
+    return `<tr class="bar ${barClass(st)}" data-id="${inv.id}"><td class="name">${clientName(inv.clientId)}</td><td>${inv.invoiceNumber || '—'}</td><td>${inv.issued || '—'}</td><td>${inv.due || '—'}</td><td>${fmt(total)}</td><td>${fmt(inv.amount_paid)}</td><td>${fmt(inv.balance)}</td><td><span class="status-pill status-${st}">${st}</span></td></tr>`;
+  }).join('') : `<tr><td colspan="8" class="empty">Nothing here. Try a different filter or add an invoice.</td></tr>`;
   document.querySelectorAll('#inv-rows tr[data-id]').forEach(tr => tr.addEventListener('click', () => openInvoiceModal(tr.dataset.id)));
 }
 
@@ -607,9 +663,6 @@ function renderAll() {
   populateClientSelect();
 }
 
-// =========================================================
-// DATA LOADING
-// =========================================================
 async function loadAll() {
   try {
     const [inv, cl, invn, co] = await Promise.all([
@@ -634,9 +687,6 @@ async function loadAll() {
   }
 }
 
-// =========================================================
-// NAVIGATION
-// =========================================================
 document.querySelectorAll('.nav-item').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
@@ -646,6 +696,7 @@ document.querySelectorAll('.nav-item').forEach(btn => {
     });
   });
 });
+
 document.querySelectorAll('.tab').forEach(tab => {
   tab.addEventListener('click', () => {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -655,9 +706,6 @@ document.querySelectorAll('.tab').forEach(tab => {
   });
 });
 
-// =========================================================
-// INVOICE MODAL — line items
-// =========================================================
 function itemRow(it) {
   const id = it.id || ('it' + (++itemCounter));
   return `<div class="items-row" data-id="${id}">
@@ -669,6 +717,7 @@ function itemRow(it) {
     <button type="button" class="rm">×</button>
   </div>`;
 }
+
 function readItemsFromForm() {
   return [...document.querySelectorAll('#items-wrap .items-row')].map(row => ({
     id: row.dataset.id,
@@ -678,6 +727,7 @@ function readItemsFromForm() {
     qty: parseFloat(row.querySelector('.it-qty').value) || 0,
   }));
 }
+
 function recalcModalTotals() {
   const items = readItemsFromForm();
   document.querySelectorAll('#items-wrap .items-row').forEach((row, i) => {
@@ -690,6 +740,7 @@ function recalcModalTotals() {
   $('#calc-vat').textContent = fmt(vat);
   $('#calc-total').textContent = fmt(subtotal + vat);
 }
+
 $('#items-wrap').addEventListener('input', (e) => {
   if (e.target.classList.contains('it-name')) {
     const match = inventory.find(it => it.product.toLowerCase() === e.target.value.trim().toLowerCase());
@@ -703,19 +754,124 @@ $('#items-wrap').addEventListener('input', (e) => {
   }
   recalcModalTotals();
 });
+
 $('#f-vat').addEventListener('input', recalcModalTotals);
+
 $('#items-wrap').addEventListener('click', (e) => {
   if (e.target.classList.contains('rm')) { e.target.closest('.items-row').remove(); recalcModalTotals(); }
 });
+
 $('#add-item-btn').addEventListener('click', () => {
   $('#items-wrap').insertAdjacentHTML('beforeend', itemRow({}));
   recalcModalTotals();
 });
 
-// =========================================================
-// INVOICE MODAL — open / save / delete
-// =========================================================
+async function loadPaymentsForInvoice(invoiceId) {
+  try {
+    const inv = await api(`/api/invoices/${invoiceId}`);
+    const payments = await api(`/api/invoices/${invoiceId}/payments`);
+
+    $('#pay-total').textContent = fmt(parseFloat(inv.total) || 0);
+    $('#pay-paid').textContent = fmt(parseFloat(inv.amount_paid) || 0);
+    $('#pay-balance').textContent = fmt(parseFloat(inv.balance) || 0);
+
+    const rows = payments.map((p, i) => `
+      <tr>
+        <td style="border:none; padding:4px 8px;">${i + 1}</td>
+        <td style="border:none; padding:4px 8px;">${p.paid_date || '—'}</td>
+        <td style="border:none; padding:4px 8px;">${fmt(parseFloat(p.amount) || 0)}</td>
+        <td style="border:none; padding:4px 8px;">${p.payment_method || '—'}</td>
+        <td style="border:none; padding:4px 8px; text-align:right;"><button type="button" class="btn ghost sm delete-payment-btn" data-pid="${p.id}" style="color:var(--danger); border-color:var(--danger); padding:2px 6px;">×</button></td>
+      </tr>
+    `).join('');
+    $('#pay-rows').innerHTML = rows || '<tr><td colspan="5" style="border:none; padding:8px; text-align:center; color:#999; font-size:12px;">No payments yet</td></tr>';
+
+    document.querySelectorAll('.delete-payment-btn').forEach(btn => {
+      btn.addEventListener('click', () => deletePayment(btn.dataset.pid));
+    });
+  } catch (err) {
+    toastErr('Failed to load payments: ' + err.message);
+  }
+}
+
+function openPaymentModal(invoiceId) {
+  editingPaymentInvoiceId = invoiceId;
+  const inv = invoices.find(i => i.id === invoiceId);
+  if (inv) {
+    $('#p-amount').value = (inv.balance || 0).toFixed(2);
+  } else {
+    $('#p-amount').value = '';
+  }
+  $('#p-date').value = new Date().toISOString().slice(0, 10);
+  $('#p-method').value = 'cash';
+  $('#p-reference').value = '';
+  $('#p-notes').value = '';
+  $('#payment-overlay').classList.add('show');
+}
+
+$('#add-payment-btn').addEventListener('click', () => {
+  if (editingInvoiceId) openPaymentModal(parseInt(editingInvoiceId));
+});
+
+$('#cancel-payment-btn').addEventListener('click', () => {
+  $('#payment-overlay').classList.remove('show');
+  editingPaymentInvoiceId = null;
+});
+
+$('#payment-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!editingPaymentInvoiceId) return;
+
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  const originalText = submitBtn.textContent;
+  submitBtn.innerHTML = '<span class="spinner"></span> Saving…';
+
+  const payload = {
+    amount: parseFloat($('#p-amount').value) || 0,
+    paid_date: $('#p-date').value,
+    payment_method: $('#p-method').value || null,
+    reference: $('#p-reference').value.trim() || null,
+    notes: $('#p-notes').value.trim() || null,
+  };
+
+  try {
+    await api(`/api/invoices/${editingPaymentInvoiceId}/payments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    toastOk('Payment recorded');
+    $('#payment-overlay').classList.remove('show');
+    editingPaymentInvoiceId = null;
+    await loadAll();
+    if (editingInvoiceId) {
+      await loadPaymentsForInvoice(parseInt(editingInvoiceId));
+    }
+  } catch (err) {
+    toastErr(err.message);
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = originalText;
+  }
+});
+
+async function deletePayment(paymentId) {
+  if (!confirm('Delete this payment? This cannot be undone.')) return;
+  try {
+    await api(`/api/payments/${paymentId}`, { method: 'DELETE' });
+    toastOk('Payment deleted');
+    await loadAll();
+    if (editingInvoiceId) {
+      await loadPaymentsForInvoice(parseInt(editingInvoiceId));
+    }
+  } catch (err) {
+    toastErr(err.message);
+  }
+}
+
 function openInvoiceModal(id) {
+  id = id ? parseInt(id, 10) : null;
   editingInvoiceId = id || null;
   const inv = id ? invoices.find(i => i.id === id) : null;
   $('#inv-modal-title').textContent = inv ? 'Edit invoice' : 'New invoice';
@@ -734,7 +890,17 @@ function openInvoiceModal(id) {
   $('#items-wrap').innerHTML = (inv && inv.items && inv.items.length ? inv.items : [{}]).map(itemRow).join('');
   recalcModalTotals();
   $('#invoice-overlay').classList.add('show');
+
+  if (id) {
+    loadPaymentsForInvoice(parseInt(id));
+  } else {
+    $('#pay-total').textContent = '$0.00';
+    $('#pay-paid').textContent = '$0.00';
+    $('#pay-balance').textContent = '$0.00';
+    $('#pay-rows').innerHTML = '<tr><td colspan="5" style="border:none; padding:8px; text-align:center; color:#999; font-size:12px;">Save invoice first to record payments</td></tr>';
+  }
 }
+
 $('#new-invoice-btn').addEventListener('click', () => openInvoiceModal(null));
 $('#cancel-invoice-btn').addEventListener('click', () => $('#invoice-overlay').classList.remove('show'));
 
@@ -790,6 +956,7 @@ $('#invoice-form').addEventListener('submit', async (e) => {
     submitBtn.textContent = originalText;
   }
 });
+
 $('#delete-invoice-btn').addEventListener('click', async () => {
   if (!editingInvoiceId) return;
   if (!confirm('Delete this invoice? This cannot be undone.')) return;
@@ -803,9 +970,6 @@ $('#delete-invoice-btn').addEventListener('click', async () => {
   }
 });
 
-// =========================================================
-// PREVIEW / PRINT SHEET
-// =========================================================
 function openPrint() {
   if (!editingInvoiceId) return;
   const inv = invoices.find(i => i.id === editingInvoiceId);
@@ -840,19 +1004,16 @@ function openPrint() {
   `;
   $('#print-overlay').classList.add('show');
 }
+
 $('#print-btn').addEventListener('click', openPrint);
 $('#close-print-btn').addEventListener('click', () => $('#print-overlay').classList.remove('show'));
 $('#do-print-btn').addEventListener('click', () => window.print());
 
-// Download PDF (server-side placeholder returns 501 — will still open in new tab)
 $('#download-pdf-btn').addEventListener('click', () => {
   if (!editingInvoiceId) return;
   window.open(`${API_URL}/api/invoices/${editingInvoiceId}/pdf`, '_blank');
 });
 
-// =========================================================
-// INVENTORY MODAL
-// =========================================================
 function openInvItemModal(id) {
   editingInvItemId = id || null;
   const it = id ? inventory.find(i => i.id === id) : null;
@@ -865,8 +1026,10 @@ function openInvItemModal(id) {
   $('#ii-balance').value = it ? (it.balance || 0) : 0;
   $('#inv-item-overlay').classList.add('show');
 }
+
 $('#new-inv-item-btn').addEventListener('click', () => openInvItemModal(null));
 $('#cancel-inv-item-btn').addEventListener('click', () => $('#inv-item-overlay').classList.remove('show'));
+
 $('#inv-item-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const data = {
@@ -899,6 +1062,7 @@ $('#inv-item-form').addEventListener('submit', async (e) => {
     toastErr(err.message);
   }
 });
+
 $('#delete-inv-item-btn').addEventListener('click', async () => {
   if (!editingInvItemId) return;
   if (!confirm('Delete this product?')) return;
@@ -912,9 +1076,6 @@ $('#delete-inv-item-btn').addEventListener('click', async () => {
   }
 });
 
-// =========================================================
-// CLIENT MODAL
-// =========================================================
 function openClientModal(id) {
   editingClientId = id || null;
   const c = id ? clients.find(c => c.id === id) : null;
@@ -926,8 +1087,10 @@ function openClientModal(id) {
   $('#c-email').value = c ? (c.email || '') : '';
   $('#client-overlay').classList.add('show');
 }
+
 $('#new-client-btn').addEventListener('click', () => openClientModal(null));
 $('#cancel-client-btn').addEventListener('click', () => $('#client-overlay').classList.remove('show'));
+
 $('#client-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const data = {
@@ -959,6 +1122,7 @@ $('#client-form').addEventListener('submit', async (e) => {
     toastErr(err.message);
   }
 });
+
 $('#delete-client-btn').addEventListener('click', async () => {
   if (!editingClientId) return;
   if (!confirm('Delete this client?')) return;
@@ -972,9 +1136,6 @@ $('#delete-client-btn').addEventListener('click', async () => {
   }
 });
 
-// =========================================================
-// COMPANY SETTINGS
-// =========================================================
 function fillCompanyForm() {
   $('#co-name').value = company.name || '';
   $('#co-address').value = company.address || '';
@@ -987,7 +1148,7 @@ function fillCompanyForm() {
   if (company.stamp_path) { $('#co-stamp-preview').src = `${API_URL}/${company.stamp_path}?t=${Date.now()}`; $('#co-stamp-preview').style.display = 'block'; }
 }
 
-async function uploadImage(file, endpoint, previewEl) {
+async function uploadImage(file, endpoint) {
   const fd = new FormData();
   fd.append('file', file);
   const res = await fetch(`${API_URL}${endpoint}`, { method: 'POST', body: fd });
@@ -1006,6 +1167,7 @@ $('#co-logo-file').addEventListener('change', async (e) => {
     $('#co-logo-preview').style.display = 'block';
   } catch (err) { toastErr(err.message); }
 });
+
 $('#co-stamp-file').addEventListener('change', async (e) => {
   const f = e.target.files[0]; if (!f) return;
   try {
@@ -1039,11 +1201,7 @@ $('#company-form').addEventListener('submit', async (e) => {
   } catch (err) { toastErr(err.message); }
 });
 
-// =========================================================
-// IMPORT SUPPLIER PDF
-// =========================================================
 let pendingImportFile = null;
-let pendingParsedData = null;
 
 $('#import-pdf-btn').addEventListener('click', () => $('#import-pdf-file').click());
 
@@ -1060,8 +1218,7 @@ $('#import-pdf-file').addEventListener('change', async (e) => {
     const res = await fetch(`${API_URL}/api/parse-pdf`, { method: 'POST', body: fd });
     const body = await res.json();
     if (!res.ok || body.error) throw new Error(body.message || `HTTP ${res.status}`);
-    pendingParsedData = body.data;
-    renderImportPreview(pendingParsedData);
+    renderImportPreview(body.data);
     $('#import-preview-overlay').classList.add('show');
   } catch (err) {
     toastErr('Parse failed: ' + err.message);
@@ -1094,7 +1251,6 @@ function renderImportPreview(d) {
 $('#cancel-import-btn').addEventListener('click', () => {
   $('#import-preview-overlay').classList.remove('show');
   pendingImportFile = null;
-  pendingParsedData = null;
 });
 
 $('#confirm-import-btn').addEventListener('click', async () => {
@@ -1117,19 +1273,9 @@ $('#confirm-import-btn').addEventListener('click', async () => {
     toastErr('Import failed: ' + err.message);
   } finally {
     pendingImportFile = null;
-    pendingParsedData = null;
   }
 });
 
-// =========================================================
-// OVERLAY BACKDROP CLOSE
-// =========================================================
-document.querySelectorAll('.overlay').forEach(ov => {
-  ov.addEventListener('click', (e) => { if (e.target === ov) ov.classList.remove('show'); });
-});
-// =========================================================
-// SUPPLIER BILLS (imported PDFs)
-// =========================================================
 async function loadSupplierBills() {
   try {
     const parsed = await api('/api/parsed-invoices');
@@ -1150,9 +1296,11 @@ async function loadSupplierBills() {
 }
 
 $('#refresh-supplier-btn').addEventListener('click', loadSupplierBills);
-// =========================================================
-// INIT
-// =========================================================
+
+document.querySelectorAll('.overlay').forEach(ov => {
+  ov.addEventListener('click', (e) => { if (e.target === ov) ov.classList.remove('show'); });
+});
+
 loadAll();
 loadSupplierBills();
 </script>

@@ -48,12 +48,20 @@ from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from extensions import db
-from models import Client, Inventory, Invoice, InvoiceAudit, InvoiceItem
+from models import Client, Inventory, Invoice, InvoiceAudit, InvoiceItem, InvoicePayment
 from utils.responses import api_response
 
 invoices_bp = Blueprint("invoices", __name__)
 
+# DELETE /api/payments/<id> lives at a URL that is NOT nested under
+# /api/invoices, unlike every other route in this file — so it can't be
+# registered on invoices_bp (which app.py mounts with url_prefix="/api/invoices").
+# It's defined here anyway, on its own blueprint, to keep all payment logic
+# in one file. app.py needs one extra line to register it — see that file.
+payments_bp = Blueprint("payments", __name__)
+
 ALLOWED_STATUSES = {"Draft", "Sent", "Paid", "Overdue"}
+ALLOWED_PAYMENT_METHODS = {"cash", "bank_transfer", "card", "cheque", "other"}
 TOP_LEVEL_EDITABLE_FIELDS = {
     "client_id", "lpo_number", "invoice_number", "issued", "due",
     "status", "vat_percent", "notes", "items",
@@ -499,3 +507,157 @@ def delete_invoice(invoice_id: int):
 def invoice_pdf(invoice_id: int):
     """GET /api/invoices/<id>/pdf — placeholder until Stage 4 (reportlab)."""
     return api_response(error="not_implemented", message="PDF generation lands in Stage 4."), 501
+
+
+@invoices_bp.route("/<int:invoice_id>/payments", methods=["POST"])
+def add_payment(invoice_id: int):
+    """POST /api/invoices/<id>/payments — record a partial (or final) payment.
+
+    invoice.amount_paid is quantized explicitly after adding the payment.
+    This is not decorative: Decimal("0") + Decimal("3000") == Decimal("3000"),
+    which serializes as "3000", not "3000.00" — a real precision gap between
+    in-memory Decimal arithmetic and the column's actual DECIMAL(12,2)
+    storage, confirmed by running it in Stage 1's review. Skipping the
+    quantize here would make the invoice object returned by THIS response
+    inconsistent with what a subsequent GET returns.
+
+    One row is written to invoice_audit here (action='update',
+    field_name='amount_paid'), exactly as specified — even when this payment
+    pushes the invoice to fully paid and its status flips to 'Paid'. That
+    status flip is NOT separately audited with its own action='status_change'
+    row, unlike PUT /api/invoices/<id>, which does log status transitions
+    that way. Flagging the inconsistency rather than silently picking a side:
+    say the word if you want a second audit row here to match PUT's behavior.
+    """
+    invoice = Invoice.query.get(invoice_id)
+    if invoice is None:
+        return api_response(error="not_found", message=f"No invoice with id {invoice_id}."), 404
+
+    body = request.get_json(silent=True)
+    if body is None or not isinstance(body, dict):
+        return api_response(error="invalid_json", message="Request body must be a JSON object."), 400
+
+    unknown = set(body.keys()) - {"amount", "paid_date", "payment_method", "reference", "notes"}
+    if unknown:
+        return api_response(
+            error="unknown_fields", message=f"Unrecognized field(s): {', '.join(sorted(unknown))}."
+        ), 400
+
+    if "amount" not in body:
+        return api_response(error="missing_field", message="'amount' is required."), 400
+    try:
+        amount = _to_decimal(body["amount"], "amount")
+    except ValueError as exc:
+        return api_response(error="invalid_type", message=str(exc)), 400
+    if amount <= 0:
+        return api_response(error="invalid_type", message="'amount' must be greater than 0."), 400
+    amount = _quantize(amount)
+
+    raw_paid_date = body.get("paid_date")
+    if raw_paid_date is None:
+        return api_response(error="missing_field", message="'paid_date' is required."), 400
+    try:
+        paid_date = _parse_date(raw_paid_date, "paid_date")
+    except ValueError as exc:
+        return api_response(error="invalid_type", message=str(exc)), 400
+
+    payment_method = body.get("payment_method")
+    if payment_method is not None and payment_method not in ALLOWED_PAYMENT_METHODS:
+        return api_response(
+            error="invalid_type",
+            message=f"'payment_method' must be one of {sorted(ALLOWED_PAYMENT_METHODS)} or null.",
+        ), 400
+
+    reference = body.get("reference")
+    if reference is not None and not isinstance(reference, str):
+        return api_response(error="invalid_type", message="'reference' must be a string."), 400
+
+    notes = body.get("notes")
+    if notes is not None and not isinstance(notes, str):
+        return api_response(error="invalid_type", message="'notes' must be a string."), 400
+
+    current_balance = _quantize((invoice.total or Decimal("0")) - (invoice.amount_paid or Decimal("0")))
+    if amount > current_balance:
+        return api_response(
+            error="overpayment",
+            message=f"Payment of {amount} exceeds the remaining balance of {current_balance}.",
+        ), 409
+
+    payment = InvoicePayment(
+        invoice_id=invoice.id, amount=amount, paid_date=paid_date,
+        payment_method=payment_method, reference=reference, notes=notes,
+    )
+    db.session.add(payment)
+
+    old_amount_paid = invoice.amount_paid
+    invoice.amount_paid = _quantize((invoice.amount_paid or Decimal("0")) + amount)
+    new_balance = _quantize((invoice.total or Decimal("0")) - invoice.amount_paid)
+    if new_balance <= 0:
+        invoice.status = "Paid"
+
+    db.session.add(InvoiceAudit(
+        invoice_id=invoice.id, action="update", field_name="amount_paid",
+        old_value=_audit_str(old_amount_paid), new_value=_audit_str(invoice.amount_paid),
+    ))
+
+    try:
+        db.session.commit()
+    except SQLAlchemyError as exc:
+        db.session.rollback()
+        return api_response(error="db_error", message=str(exc)), 500
+
+    return api_response(data={"payment": payment.to_dict(), "invoice": invoice.to_dict()}), 201
+
+
+@invoices_bp.route("/<int:invoice_id>/payments", methods=["GET"])
+def list_payments(invoice_id: int):
+    """GET /api/invoices/<id>/payments — list payments for this invoice, newest first."""
+    invoice = Invoice.query.get(invoice_id)
+    if invoice is None:
+        return api_response(error="not_found", message=f"No invoice with id {invoice_id}."), 404
+
+    payments = (
+        InvoicePayment.query.filter_by(invoice_id=invoice_id)
+        .order_by(InvoicePayment.paid_date.desc())
+        .all()
+    )
+    return api_response(data=[p.to_dict() for p in payments]), 200
+
+
+@payments_bp.route("/payments/<int:payment_id>", methods=["DELETE"])
+def delete_payment(payment_id: int):
+    """DELETE /api/payments/<id> — remove a payment, reversing its effect on the invoice.
+
+    Status reversal is deliberately narrow: only flips 'Paid' back to 'Sent',
+    and only when this specific delete brings the balance back above zero.
+    An invoice sitting at 'Draft' or 'Overdue' when a payment is deleted
+    stays exactly as it was — this route never invents a status transition
+    the spec didn't ask for.
+    """
+    payment = InvoicePayment.query.get(payment_id)
+    if payment is None:
+        return api_response(error="not_found", message=f"No payment with id {payment_id}."), 404
+
+    invoice = payment.invoice
+
+    old_amount_paid = invoice.amount_paid
+    new_amount_paid = _quantize((invoice.amount_paid or Decimal("0")) - payment.amount)
+    invoice.amount_paid = new_amount_paid if new_amount_paid > 0 else Decimal("0.00")
+
+    new_balance = _quantize((invoice.total or Decimal("0")) - invoice.amount_paid)
+    if invoice.status == "Paid" and new_balance > 0:
+        invoice.status = "Sent"
+
+    db.session.add(InvoiceAudit(
+        invoice_id=invoice.id, action="delete", field_name="amount_paid",
+        old_value=_audit_str(old_amount_paid), new_value=_audit_str(invoice.amount_paid),
+    ))
+    db.session.delete(payment)
+
+    try:
+        db.session.commit()
+    except SQLAlchemyError as exc:
+        db.session.rollback()
+        return api_response(error="db_error", message=str(exc)), 500
+
+    return api_response(data={"id": payment_id, "deleted": True}), 200

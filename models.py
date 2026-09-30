@@ -58,13 +58,21 @@ class Invoice(db.Model):
     subtotal = db.Column(db.Numeric(12, 2), nullable=False, default=0)
     vat = db.Column(db.Numeric(12, 2), nullable=False, default=0)
     total = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    amount_paid = db.Column(db.Numeric(12, 2), nullable=False, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     client = db.relationship("Client", back_populates="invoices")
     items = db.relationship("InvoiceItem", back_populates="invoice",
                              cascade="all, delete-orphan")
+    payments = db.relationship("InvoicePayment", back_populates="invoice",
+                                cascade="all, delete-orphan",
+                                order_by="InvoicePayment.paid_date.desc()")
 
     def to_dict(self, include_items: bool = True) -> dict:
+        # total defaults to Numeric(0) at the DB level, never actually NULL,
+        # but guarding with `or 0` here anyway rather than assuming that
+        # holds for every row that might exist before this column existed.
+        balance = (self.total or 0) - (self.amount_paid or 0)
         data = {
             "id": self.id,
             "client_id": self.client_id,
@@ -78,6 +86,8 @@ class Invoice(db.Model):
             "subtotal": _dec(self.subtotal),
             "vat": _dec(self.vat),
             "total": _dec(self.total),
+            "amount_paid": _dec(self.amount_paid) if self.amount_paid is not None else "0.00",
+            "balance": _dec(balance),
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
         if include_items:
@@ -107,6 +117,36 @@ class InvoiceItem(db.Model):
             "unit_price": _dec(self.unit_price),
             "qty": _dec(self.qty),
             "amount": _dec(self.amount),
+        }
+
+
+class InvoicePayment(db.Model):
+    __tablename__ = "invoice_payments"
+
+    id = db.Column(db.Integer, primary_key=True)
+    invoice_id = db.Column(db.Integer, db.ForeignKey("invoices.id", ondelete="CASCADE"), nullable=False)
+    amount = db.Column(db.Numeric(12, 2), nullable=False)
+    paid_date = db.Column(db.Date, nullable=False)
+    payment_method = db.Column(
+        db.Enum("cash", "bank_transfer", "card", "cheque", "other", name="payment_method"),
+        nullable=True,
+    )
+    reference = db.Column(db.String(255))
+    notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    invoice = db.relationship("Invoice", back_populates="payments")
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "invoice_id": self.invoice_id,
+            "amount": _dec(self.amount),
+            "paid_date": self.paid_date.isoformat() if self.paid_date else None,
+            "payment_method": self.payment_method,
+            "reference": self.reference,
+            "notes": self.notes,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 
 
