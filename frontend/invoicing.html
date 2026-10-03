@@ -78,7 +78,7 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
 .overlay{position:fixed; inset:0; background:rgba(20,20,18,0.5); display:none; align-items:flex-start; justify-content:center; z-index:10; padding:24px 16px; overflow-y:auto; animation:fadeIn 0.15s ease-out;}
 .overlay.show{display:flex;}
 @keyframes fadeIn{from{opacity:0;} to{opacity:1;}}
-.modal{background:var(--surface); border-radius:12px; padding:26px; width:100%; max-width:560px; margin:auto; box-shadow:var(--shadow-lg); animation:slideUp 0.2s ease-out;}
+.modal{background:var(--surface); border-radius:12px; padding:26px; width:100%; max-width:560px; margin:auto; box-shadow:var(--shadow-lg); animation:slideUp 0.2s ease-out; max-height:calc(100vh - 48px); overflow-y:auto;}
 @keyframes slideUp{from{opacity:0; transform:translateY(12px);} to{opacity:1; transform:translateY(0);}}
 .modal h2{font-family:'Fraunces',serif; font-weight:500; font-size:20px; margin:0 0 18px;}
 .field{margin-bottom:14px;}
@@ -1042,7 +1042,6 @@ function openInvoiceModal(id) {
     statusSel.innerHTML = '<option>Draft</option><option>Sent</option><option>Paid</option><option>Overdue</option>';
     statusSel.value = inv ? inv.status : 'Draft';
   }
-   vatPercent: 0,
   $('#f-notes').value = inv ? (inv.notes || '') : '';
   $('#items-wrap').innerHTML = (inv && inv.items && inv.items.length ? inv.items : [{}]).map(itemRow).join('');
   recalcModalTotals();
@@ -1057,8 +1056,10 @@ function openInvoiceModal(id) {
     $('#pay-total').textContent = '$0.00';
     $('#pay-paid').textContent = '$0.00';
     $('#pay-balance').textContent = '$0.00';
-    $('#pay-rows').innerHTML = '<tr><td colspan="5" style="border:none; padding:8px; text-align:center; color:#999; font-size:12px;">Save invoice first to record payments</td></tr>';
+        $('#pay-rows').innerHTML = '<tr><td colspan="5" style="border:none; padding:8px; text-align:center; color:#999; font-size:12px;">Save invoice first to record payments</td></tr>';
   }
+
+  $('#invoice-overlay').classList.add('show');
 }
 
 $('#new-invoice-btn').addEventListener('click', () => openInvoiceModal(null));
@@ -1490,7 +1491,11 @@ async function loadSupplierBills() {
 $('#refresh-supplier-btn').addEventListener('click', loadSupplierBills);
 
 document.querySelectorAll('.overlay').forEach(ov => {
-  ov.addEventListener('click', (e) => { if (e.target === ov) ov.classList.remove('show'); });
+  ov.addEventListener('mousedown', (e) => {
+    if (e.target === ov && e.isTrusted) {
+      ov.classList.remove('show');
+    }
+  });
 });
 
 loadAll();
