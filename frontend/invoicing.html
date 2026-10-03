@@ -165,6 +165,7 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
     <button class="nav-item active" data-view="dashboard">Dashboard</button>
     <button class="nav-item" data-view="invoices">Invoices</button>
     <button class="nav-item" data-view="quotations">Quotations</button>
+    <button class="nav-item" data-view="statements">Statements</button>
     <button class="nav-item" data-view="clients">Clients</button>
     <button class="nav-item" data-view="inventory">Inventory</button>
     <button class="nav-item" data-view="supplier">Supplier Bills</button>
@@ -247,6 +248,25 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
     <div class="clients-list" id="client-rows"></div>
   </div>
 
+  <div id="view-statements" style="display:none;">
+
+    <div id="stmt-list-state">
+      <h1>Statements</h1>
+      <p class="lede">Pick a client to view their account statement.</p>
+      <div class="toolbar">
+        <input type="text" id="stmt-search" placeholder="Search clients..." style="flex:1; max-width:400px; padding:9px 12px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--ink); font-family:inherit; font-size:14px;">
+      </div>
+      <div class="clients-list" id="stmt-client-list"></div>
+    </div>
+
+    <div id="stmt-detail-state" style="display:none;">
+      <button class="btn ghost sm" id="stmt-back-btn" style="margin-bottom:14px;">? Back to Statements</button>
+      <div id="stmt-header"></div>
+      <div class="toolbar" id="stmt-filters" style="margin-top:14px; flex-wrap:wrap; gap:8px;"></div>
+      <div id="stmt-body"></div>
+    </div>
+
+  </div>
   <div id="view-supplier" style="display:none;">
     <h1>Supplier Bills</h1>
     <p class="lede">Invoices received from suppliers (imported from PDFs).</p>
@@ -749,7 +769,7 @@ document.querySelectorAll('.nav-item').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-        ['dashboard', 'invoices', 'quotations', 'clients', 'inventory', 'supplier', 'company'].forEach(v => {
+        ['dashboard', 'invoices', 'quotations', 'statements', 'clients', 'inventory', 'supplier', 'company'].forEach(v => {
       $('#view-' + v).style.display = (v === btn.dataset.view) ? 'block' : 'none';
     });
   });
@@ -1498,6 +1518,233 @@ document.querySelectorAll('.overlay').forEach(ov => {
   });
 });
 
+// ============================================================
+// STATEMENTS MODULE
+// ============================================================
+let stmtCurrentClientId = null;
+let stmtCurrentRange = 'month';
+
+function fmtYMD(d) {
+  return d.toISOString().slice(0, 10);
+}
+
+function stmtDateRange(range) {
+  const today = new Date();
+  const y = today.getFullYear(), m = today.getMonth();
+  if (range === 'month') {
+    return { from: fmtYMD(new Date(y, m, 1)), to: fmtYMD(new Date(y, m + 1, 0)) };
+  }
+  if (range === '30d') {
+    const ago = new Date(today); ago.setDate(ago.getDate() - 30);
+    return { from: fmtYMD(ago), to: fmtYMD(today) };
+  }
+  if (range === 'quarter') {
+    const qStartMonth = Math.floor(m / 3) * 3;
+    return { from: fmtYMD(new Date(y, qStartMonth, 1)), to: fmtYMD(today) };
+  }
+  if (range === 'year') {
+    return { from: fmtYMD(new Date(y, 0, 1)), to: fmtYMD(today) };
+  }
+  if (range === 'all') {
+    return { from: '2000-01-01', to: fmtYMD(today) };
+  }
+  return { from: fmtYMD(new Date(y, m, 1)), to: fmtYMD(today) };
+}
+
+function renderStatementClientList(filterText) {
+  const q = (filterText || '').trim().toLowerCase();
+  const sorted = [...clients].sort((a, b) =>
+    (a.name || '').toLowerCase().localeCompare((b.name || '').toLowerCase())
+  );
+  const filtered = q
+    ? sorted.filter(c => (c.name || '').toLowerCase().includes(q))
+    : sorted;
+
+  const container = document.getElementById('stmt-client-list');
+  if (!container) return;
+
+  if (!filtered.length) {
+    container.innerHTML = '<div class="empty">No clients match.</div>';
+    return;
+  }
+
+  container.innerHTML = filtered.map(c => `
+    <div class="client-row" data-id="${c.id}">
+      <div>
+        <div class="cname">${c.name || ''}</div>
+        <div class="cmeta">${(c.address || '').replace(/\n/g, ', ')}</div>
+        <div class="cmeta">${c.trn ? 'TRN ' + c.trn : ''} ${c.email || ''}</div>
+      </div>
+    </div>
+  `).join('');
+
+  container.querySelectorAll('.client-row').forEach(el => {
+    el.addEventListener('click', () => openStatementForClient(parseInt(el.dataset.id, 10)));
+  });
+}
+
+function stmtShowListState() {
+  const listState = document.getElementById('stmt-list-state');
+  const detailState = document.getElementById('stmt-detail-state');
+  if (listState) listState.style.display = 'block';
+  if (detailState) detailState.style.display = 'none';
+  stmtCurrentClientId = null;
+}
+
+function stmtShowDetailState() {
+  const listState = document.getElementById('stmt-list-state');
+  const detailState = document.getElementById('stmt-detail-state');
+  if (listState) listState.style.display = 'none';
+  if (detailState) detailState.style.display = 'block';
+}
+
+async function openStatementForClient(clientId) {
+  if (!clientId) return;
+  stmtCurrentClientId = clientId;
+  stmtShowDetailState();
+  await loadStatement();
+}
+
+async function loadStatement() {
+  if (!stmtCurrentClientId) return;
+  const range = stmtDateRange(stmtCurrentRange);
+  const fromInput = document.getElementById('stmt-from');
+  const toInput = document.getElementById('stmt-to');
+  const from = fromInput && fromInput.value ? fromInput.value : range.from;
+  const to = toInput && toInput.value ? toInput.value : range.to;
+
+  try {
+    const data = await api(`/api/clients/${stmtCurrentClientId}/statement?from=${from}&to=${to}`);
+    renderStatement(data);
+  } catch (err) {
+    toastErr('Statement failed: ' + err.message);
+  }
+}
+
+function renderStatement(data) {
+  const header = document.getElementById('stmt-header');
+  const filters = document.getElementById('stmt-filters');
+  const body = document.getElementById('stmt-body');
+  if (!header || !filters || !body) return;
+
+  const c = data.client || {};
+  header.innerHTML = `
+    <h1 style="margin-bottom:2px;">${c.name || ''}</h1>
+    <div style="color:var(--sub); font-size:13px; line-height:1.6;">
+      ${c.trn ? 'TRN ' + c.trn + '<br>' : ''}
+      ${(c.address || '').replace(/\n/g, '<br>')}
+      ${c.po_box ? '<br>PO Box ' + c.po_box : ''}
+    </div>
+  `;
+
+  const range = data.period || {};
+  const quickBtns = [
+    ['month', 'This Month'], ['30d', 'Last 30 Days'],
+    ['quarter', 'This Quarter'], ['year', 'This Year'], ['all', 'All Time']
+  ].map(([key, label]) =>
+    `<button class="tab ${stmtCurrentRange === key ? 'active' : ''}" data-range="${key}">${label}</button>`
+  ).join('');
+
+  filters.innerHTML = `
+    <label style="font-size:13px;">From <input type="date" id="stmt-from" value="${range.from || ''}" style="padding:5px 8px; border:1px solid var(--line); border-radius:5px; background:var(--bg); color:var(--ink); font-family:inherit;"></label>
+    <label style="font-size:13px;">To <input type="date" id="stmt-to" value="${range.to || ''}" style="padding:5px 8px; border:1px solid var(--line); border-radius:5px; background:var(--bg); color:var(--ink); font-family:inherit;"></label>
+    <div class="tabs" style="margin-left:8px;">${quickBtns}</div>
+  `;
+
+  filters.querySelectorAll('.tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      stmtCurrentRange = btn.dataset.range;
+      const r = stmtDateRange(stmtCurrentRange);
+      const f = document.getElementById('stmt-from');
+      const t = document.getElementById('stmt-to');
+      if (f) f.value = r.from;
+      if (t) t.value = r.to;
+      loadStatement();
+    });
+  });
+
+  const fromInput = document.getElementById('stmt-from');
+  const toInput = document.getElementById('stmt-to');
+  if (fromInput) fromInput.addEventListener('change', loadStatement);
+  if (toInput) toInput.addEventListener('change', loadStatement);
+
+  const t = data.totals || {};
+  const summaryHtml = `
+    <div class="stats" style="margin-bottom:20px;">
+      <div class="stat"><div class="stat-label">Opening</div><div class="stat-value">${fmt(data.opening_balance)}</div></div>
+      <div class="stat"><div class="stat-label">Invoiced</div><div class="stat-value pine">${fmt(t.invoiced)}</div></div>
+      <div class="stat"><div class="stat-label">Paid</div><div class="stat-value pine">${fmt(t.paid)}</div></div>
+      <div class="stat"><div class="stat-label">Closing</div><div class="stat-value amber">${fmt(data.closing_balance)}</div></div>
+    </div>
+  `;
+
+  const a = data.aging || {};
+  const agingRow = (label, key) => {
+    const amount = parseFloat(a[key] || 0);
+    const isZero = !amount;
+    return `<div class="stat" style="min-width:120px;">
+      <div class="stat-label">${label}</div>
+      <div class="stat-value ${isZero ? '' : 'amber'}" style="font-size:20px;">${fmt(a[key])}</div>
+    </div>`;
+  };
+  const agingHtml = `
+    <div class="section-title">Aging</div>
+    <div class="stats" style="margin-bottom:20px;">
+      ${agingRow('Current', 'current')}
+      ${agingRow('1-30 days', 'days_1_30')}
+      ${agingRow('31-60 days', 'days_31_60')}
+      ${agingRow('61-90 days', 'days_61_90')}
+      ${agingRow('90+ days', 'days_90_plus')}
+    </div>
+  `;
+
+  const txns = data.transactions || [];
+  const rowsHtml = txns.length ? txns.map(tx => `
+    <tr>
+      <td>${tx.date || ''}</td>
+      <td>${tx.type === 'invoice' ? 'Invoice' : 'Payment'}</td>
+      <td>${tx.reference || '—'}</td>
+      <td style="text-align:right;">${tx.type === 'invoice' ? fmt(tx.debit) : '—'}</td>
+      <td style="text-align:right;">${tx.type === 'payment' ? fmt(tx.credit) : '—'}</td>
+      <td style="text-align:right; font-weight:600;">${fmt(tx.balance)}</td>
+    </tr>
+  `).join('') : `<tr><td colspan="6" class="empty">No transactions in this period.</td></tr>`;
+
+  const tableHtml = `
+    <div class="section-title">Transactions</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th><th>Type</th><th>Reference</th>
+          <th style="text-align:right;">Debit</th>
+          <th style="text-align:right;">Credit</th>
+          <th style="text-align:right;">Balance</th>
+        </tr>
+      </thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+  `;
+
+  body.innerHTML = summaryHtml + agingHtml + tableHtml;
+}
+
+document.getElementById('stmt-search')?.addEventListener('input', (e) => {
+  renderStatementClientList(e.target.value);
+});
+
+document.getElementById('stmt-back-btn')?.addEventListener('click', () => {
+  stmtShowListState();
+});
+
+// When the Statements nav item is clicked, populate the client list
+document.querySelectorAll('.nav-item').forEach(btn => {
+  if (btn.dataset.view === 'statements') {
+    btn.addEventListener('click', () => {
+      renderStatementClientList(document.getElementById('stmt-search')?.value || '');
+      stmtShowListState();
+    });
+  }
+});
 loadAll();
 loadSupplierBills();
 </script>
