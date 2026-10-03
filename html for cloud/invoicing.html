@@ -487,11 +487,12 @@ function apiInvToUi(inv) {
 // Map UI invoice shape → API payload
 function uiInvToApi(ui) {
   return {
+    document_type: ui.documentType || 'invoice',
     client_id: parseInt(ui.clientId),
     lpo_number: ui.lpoNumber || null,
-    invoice_number: ui.invoiceNumber,
     issued: ui.issued || null,
     due: ui.due || null,
+    valid_until: ui.validUntil || null,
     status: ui.status,
     vat_percent: ui.vatPercent || 0,
     notes: ui.notes || null,
@@ -500,6 +501,9 @@ function uiInvToApi(ui) {
       brand: it.brand || null,
       unit_price: Number(it.unitPrice) || 0,
       qty: Number(it.qty) || 0,
+      foc_qty: Number(it.focQty) || 0,
+      discount_percent: Number(it.discountPercent) || 0,
+      vat_percent: Number(it.vatPercent) || 0,
     }))
   };
 }

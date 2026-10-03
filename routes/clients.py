@@ -1,8 +1,8 @@
 """Routes for /api/clients — full CRUD.
 
-Every return goes through api_response() — including list_clients, which is
-the bug this revision fixes (it previously returned a bare JSON array
-instead of the {data, error, message} envelope).
+Every return goes through api_response() envelope on every return,
+whitelisted editable fields, a specific DB constraint caught ahead of the
+broader SQLAlchemyError.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ from utils.responses import api_response
 
 clients_bp = Blueprint("clients", __name__)
 
-EDITABLE_FIELDS = {"name", "address", "trn", "email"}
+EDITABLE_FIELDS = {"name", "address", "po_box", "trn", "email"}
 
 
 @clients_bp.route("", methods=["GET"])
@@ -45,13 +45,14 @@ def create_client():
             error="unknown_fields", message=f"Unrecognized field(s): {', '.join(sorted(unknown))}."
         ), 400
 
-    for field in ("address", "trn", "email"):
+    for field in ("address", "po_box", "trn", "email"):
         if field in body and body[field] is not None and not isinstance(body[field], str):
             return api_response(error="invalid_type", message=f"'{field}' must be a string."), 400
 
     client_obj = Client(
         name=name.strip(),
         address=body.get("address"),
+        po_box=body.get("po_box"),
         trn=body.get("trn"),
         email=body.get("email"),
     )
@@ -76,7 +77,7 @@ def get_client(client_id: int):
 
 @clients_bp.route("/<int:client_id>", methods=["PUT"])
 def update_client(client_id: int):
-    """PUT /api/clients/<id> — update a client. Whitelist: name, address, trn, email."""
+    """PUT /api/clients/<id> — update a client. Whitelist: name, address, po_box, trn, email."""
     client_obj = Client.query.get(client_id)
     if client_obj is None:
         return api_response(error="not_found", message=f"No client with id {client_id}."), 404
@@ -94,7 +95,7 @@ def update_client(client_id: int):
     if "name" in body and (not isinstance(body["name"], str) or not body["name"].strip()):
         return api_response(error="invalid_type", message="'name' must be a non-empty string."), 400
 
-    for field in ("address", "trn", "email"):
+    for field in ("address", "po_box", "trn", "email"):
         if field in body and body[field] is not None and not isinstance(body[field], str):
             return api_response(error="invalid_type", message=f"'{field}' must be a string."), 400
 
@@ -114,12 +115,9 @@ def update_client(client_id: int):
 
 @clients_bp.route("/<int:client_id>", methods=["DELETE"])
 def delete_client(client_id: int):
-    """DELETE /api/clients/<id> — delete a client.
-
-    Blocked (409) if the client still has invoices: invoices.client_id has
-    ON DELETE RESTRICT, so the DB itself refuses the delete. We catch that
-    IntegrityError specifically (before the broader SQLAlchemyError) and
-    turn it into a helpful 409 instead of a raw 500.
+    """DELETE /api/clients/<id> — delete a client. Blocked (409) if the client
+    has invoices: invoices.client_id has ON DELETE RESTRICT, so the DB itself
+    refuses the delete.
     """
     client_obj = Client.query.get(client_id)
     if client_obj is None:

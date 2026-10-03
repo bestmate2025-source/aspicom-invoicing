@@ -96,13 +96,12 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
 .client-row .cmeta{font-size:13px; color:var(--sub);}
 .section-title{font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; color:var(--sub); margin:18px 0 8px;}
 .section-title:first-child{margin-top:0;}
-.items-row{display:grid; grid-template-columns:2fr 1.2fr 1fr 1fr 0.6fr auto; gap:8px; margin-bottom:8px; align-items:center;}
-.items-row input{padding:7px 8px; border:1px solid var(--line); border-radius:5px; font-size:13px; background:var(--bg); color:var(--ink); font-family:inherit; width:100%;}
-.items-row input:focus{outline:none; border-color:var(--pine); box-shadow:0 0 0 3px var(--pine-soft);}
-.items-row .amt{font-size:13px; text-align:right; padding-right:4px; color:var(--sub);}
+.items-row{display:grid; grid-template-columns: 1.8fr 1.2fr 0.9fr 0.8fr 0.8fr 0.9fr 0.9fr 1fr 1fr 1fr auto; gap:8px; margin-bottom:10px; align-items:center;}
+.items-row input{padding:8px 10px; border:1px solid var(--line); border-radius:5px; font-size:14px; background:#fff; color:var(--ink); font-family:inherit; width:100%; text-align:center;}.items-row input:focus{outline:none; border-color:var(--pine); box-shadow:0 0 0 3px var(--pine-soft);}
+.items-row .amt{font-size:13px; text-align:right; padding:8px 10px; color:var(--pine); font-weight:600; background:var(--pine-soft); border-radius:5px; white-space:nowrap;}
 .items-row .rm{background:none; border:none; color:var(--danger); cursor:pointer; font-size:16px; line-height:1; padding:4px 8px; border-radius:4px;}
 .items-row .rm:hover{background:var(--amber-soft);}
-.items-head{display:grid; grid-template-columns:2fr 1.2fr 1fr 1fr 0.6fr auto; gap:8px; font-size:11px; text-transform:uppercase; color:var(--sub); font-weight:600; margin-bottom:6px;}
+.items-head{display:grid; grid-template-columns: 1.8fr 1.2fr 0.9fr 0.8fr 0.8fr 0.9fr 0.9fr 1fr 1fr 1fr auto; gap:8px; font-size:10px; text-transform:uppercase; color:var(--sub); font-weight:700; margin-bottom:6px; letter-spacing:0.03em;}
 .totals-box{margin-top:10px; padding-top:10px; border-top:1px solid var(--line); display:flex; flex-direction:column; gap:4px; align-items:flex-end; font-size:14px;}
 .totals-box .grand{font-family:'Fraunces',serif; font-size:20px; font-weight:600;}
 #print-overlay .modal{max-width:780px; padding:0; background:#fff; color:#111;}
@@ -165,6 +164,7 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
   <nav>
     <button class="nav-item active" data-view="dashboard">Dashboard</button>
     <button class="nav-item" data-view="invoices">Invoices</button>
+    <button class="nav-item" data-view="quotations">Quotations</button>
     <button class="nav-item" data-view="clients">Clients</button>
     <button class="nav-item" data-view="inventory">Inventory</button>
     <button class="nav-item" data-view="supplier">Supplier Bills</button>
@@ -190,10 +190,10 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
   </div>
 
   <div id="view-invoices" style="display:none;">
-    <h1>Invoices</h1>
+        <h1>Invoices</h1>
     <p class="lede">Every invoice, sortable by status.</p>
-    <div class="toolbar">
-      <div class="tabs" id="filter-tabs">
+        <div class="toolbar">
+            <div class="tabs" id="filter-tabs">
         <button class="tab active" data-filter="All">All</button>
         <button class="tab" data-filter="Draft">Draft</button>
         <button class="tab" data-filter="Sent">Sent</button>
@@ -201,6 +201,7 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
         <button class="tab" data-filter="Overdue">Overdue</button>
         <button class="tab" data-filter="Partial">Partial</button>
       </div>
+
       <div style="display:flex; gap:8px;">
         <button class="btn ghost" id="import-pdf-btn">📄 Import supplier PDF</button>
         <button class="btn" id="new-invoice-btn">New invoice</button>
@@ -210,7 +211,33 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
       <tbody id="inv-rows"></tbody>
     </table>
   </div>
-
+    <div id="view-quotations" style="display:none;">
+    <h1>Quotations</h1>
+    <p class="lede">Price offers sent to clients — convert to invoice when accepted.</p>
+    <div class="toolbar">
+      <div class="tabs" id="quot-filter-tabs">
+        <button class="tab active" data-filter="All">All</button>
+        <button class="tab" data-filter="Draft">Draft</button>
+        <button class="tab" data-filter="Sent">Sent</button>
+        <button class="tab" data-filter="Accepted">Accepted</button>
+        <button class="tab" data-filter="Rejected">Rejected</button>
+      </div>
+      <button class="btn" id="new-quotation-btn">New quotation</button>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Client</th>
+          <th>Quotation #</th>
+          <th>Issued</th>
+          <th>Valid Until</th>
+          <th>Total</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="quot-rows"></tbody>
+    </table>
+  </div>
   <div id="view-clients" style="display:none;">
     <h1>Clients</h1>
     <p class="lede">Who you bill — name, address and TRN feed straight onto the invoice.</p>
@@ -275,8 +302,8 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
 </main>
 
 <div class="overlay" id="invoice-overlay">
-  <div class="modal">
-    <h2 id="inv-modal-title">New invoice</h2>
+  <div class="modal" style="max-width:1400px; width:95vw;">
+        <h2 id="inv-modal-title">New invoice</h2>
     <form id="invoice-form">
       <div class="section-title">Client</div>
       <div class="field"><select id="f-client" required></select></div>
@@ -290,17 +317,18 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
       </div>
 
       <div class="section-title">Line items</div>
-      <div class="items-head"><span>Product</span><span>Brand</span><span>Unit price</span><span>Qty</span><span>Amt</span><span></span></div>
+      <div class="items-head" style="grid-template-columns: 2fr 1fr 0.8fr 0.7fr 0.7fr 0.7fr 0.7fr 0.7fr 0.7fr 0.7fr auto;">
+        <span>Product</span><span>Brand</span><span>Unit</span><span>Qty</span><span>FOC</span><span>Disc%</span><span>VAT%</span><span>Amount</span><span>VAT</span><span>Total</span><span></span>
+      </div>
       <div id="items-wrap"></div>
       <button type="button" class="btn ghost sm" id="add-item-btn">+ Add line</button>
 
       <div class="totals-box">
-        <div class="field" style="width:140px; display:flex; align-items:center; gap:8px; justify-content:flex-end;">
-          <label style="margin:0;">VAT %</label><input type="number" id="f-vat" value="0" min="0" step="0.1" style="width:70px;">
-        </div>
+        
         <div>Subtotal: <span id="calc-subtotal">$0.00</span></div>
+        <div>Discount: <span id="calc-discount">$0.00</span></div>
         <div>VAT: <span id="calc-vat">$0.00</span></div>
-        <div class="grand">Total: <span id="calc-total">$0.00</span></div>
+                <div class="grand">Total: <span id="calc-total">$0.00</span></div>
       </div>
 
       <div class="section-title">Payments</div>
@@ -514,11 +542,13 @@ const fmt = n => '$' + Number(n || 0).toLocaleString(undefined, {minimumFraction
 function apiInvToUi(inv) {
   return {
     id: inv.id,
+    documentType: inv.document_type || 'invoice',
     clientId: inv.client_id,
     lpoNumber: inv.lpo_number,
     invoiceNumber: inv.invoice_number,
     issued: inv.issued,
     due: inv.due,
+    validUntil: inv.valid_until,
     status: inv.status,
     vatPercent: parseFloat(inv.vat_percent) || 0,
     notes: inv.notes,
@@ -527,24 +557,30 @@ function apiInvToUi(inv) {
     total: parseFloat(inv.total) || 0,
     amount_paid: parseFloat(inv.amount_paid) || 0,
     balance: parseFloat(inv.balance) || 0,
-    items: (inv.items || []).map(it => ({
+        items: (inv.items || []).map(it => ({
       id: it.id,
       name: it.product_name,
       brand: it.brand,
       unitPrice: parseFloat(it.unit_price) || 0,
       qty: parseFloat(it.qty) || 0,
+      focQty: parseFloat(it.foc_qty) || 0,
+      discountPercent: parseFloat(it.discount_percent) || 0,
+      discountAmount: parseFloat(it.discount_amount) || 0,
       amount: parseFloat(it.amount) || 0,
+      vatPercent: parseFloat(it.vat_percent) || 0,
+      vatAmount: parseFloat(it.vat_amount) || 0,
     }))
-  };
+  };  
 }
 
 function uiInvToApi(ui) {
   return {
+    document_type: ui.documentType || 'invoice',
     client_id: parseInt(ui.clientId),
     lpo_number: ui.lpoNumber || null,
-    invoice_number: ui.invoiceNumber,
     issued: ui.issued || null,
     due: ui.due || null,
+    valid_until: ui.validUntil || null,
     status: ui.status,
     vat_percent: ui.vatPercent || 0,
     notes: ui.notes || null,
@@ -553,6 +589,9 @@ function uiInvToApi(ui) {
       brand: it.brand || null,
       unit_price: Number(it.unitPrice) || 0,
       qty: Number(it.qty) || 0,
+      foc_qty: Number(it.focQty) || 0,
+      discount_percent: Number(it.discountPercent) || 0,
+      vat_percent: Number(it.vatPercent) || 0,
     }))
   };
 }
@@ -594,7 +633,8 @@ function renderStats() {
       if (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) paid += total;
     }
   });
-  $('#stat-outstanding').textContent = fmt(outstanding);
+  $
+  ('#stat-outstanding').textContent = fmt(outstanding);
   $('#stat-overdue').textContent = fmt(overdue);
   $('#stat-paid').textContent = fmt(paid);
   $('#stat-collected').textContent = fmt(collected);
@@ -628,6 +668,23 @@ function renderInvoices() {
   document.querySelectorAll('#inv-rows tr[data-id]').forEach(tr => tr.addEventListener('click', () => openInvoiceModal(tr.dataset.id)));
 }
 
+let currentQuotFilter = 'All';
+function renderQuotations() {
+  const quotations = invoices.filter(inv => inv.documentType === 'quotation');
+  const rows = quotations
+    .filter(inv => currentQuotFilter === 'All' || inv.status === currentQuotFilter)
+    .sort((a, b) => new Date(b.issued || 0) - new Date(a.issued || 0));
+  $('#quot-rows').innerHTML = rows.length ? rows.map(inv => {
+    const st = inv.status || 'Draft';
+    const pillClass = st === 'Accepted' ? 'status-Paid'
+                    : st === 'Rejected' ? 'status-Overdue'
+                    : st === 'Sent' ? 'status-Sent'
+                    : 'status-Draft';
+    return `<tr data-id="${inv.id}"><td class="name">${clientName(inv.clientId)}</td><td>${inv.invoiceNumber || '—'}</td><td>${inv.issued || '—'}</td><td>${inv.validUntil || '—'}</td><td>${fmt(inv.total)}</td><td><span class="status-pill ${pillClass}">${st}</span></td></tr>`;
+  }).join('') : `<tr><td colspan="6" class="empty">No quotations yet — create your first one.</td></tr>`;
+  document.querySelectorAll('#quot-rows tr[data-id]').forEach(tr => tr.addEventListener('click', () => openQuotationModal(tr.dataset.id)));
+}
+
 function renderClients() {
   $('#client-rows').innerHTML = clients.length ? clients.map(c => `
     <div class="client-row" data-id="${c.id}">
@@ -658,6 +715,7 @@ function renderInventory() {
 function renderAll() {
   renderDashboard();
   renderInvoices();
+  renderQuotations();
   renderClients();
   renderInventory();
   populateClientSelect();
@@ -691,7 +749,7 @@ document.querySelectorAll('.nav-item').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    ['dashboard', 'invoices', 'clients', 'inventory', 'supplier', 'company'].forEach(v => {
+        ['dashboard', 'invoices', 'quotations', 'clients', 'inventory', 'supplier', 'company'].forEach(v => {
       $('#view-' + v).style.display = (v === btn.dataset.view) ? 'block' : 'none';
     });
   });
@@ -708,12 +766,22 @@ document.querySelectorAll('.tab').forEach(tab => {
 
 function itemRow(it) {
   const id = it.id || ('it' + (++itemCounter));
-  return `<div class="items-row" data-id="${id}">
+  const lineAmt = (it.unitPrice || 0) * (it.qty || 0);
+  const discAmt = lineAmt * (it.discountPercent || 0) / 100;
+  const taxable = lineAmt - discAmt;
+  const vatAmt = taxable * (it.vatPercent || 0) / 100;
+  const lineTotal = taxable + vatAmt;
+  return `<div class="items-row" data-id="${id}" style="grid-template-columns: 2fr 1fr 0.8fr 0.7fr 0.7fr 0.7fr 0.7fr 0.7fr 0.7fr 0.7fr auto;">
     <input class="it-name" placeholder="Product name" list="inventory-list" value="${it.name || ''}">
-    <input class="it-brand" placeholder="Brand / type" value="${it.brand || ''}">
-    <input class="it-price" type="number" step="0.01" min="0" placeholder="0.00" value="${it.unitPrice || ''}">
-    <input class="it-qty" type="number" step="1" min="0" placeholder="0" value="${it.qty || ''}">
-    <span class="amt">${fmt((it.unitPrice || 0) * (it.qty || 0))}</span>
+    <input class="it-brand" placeholder="Brand" value="${it.brand || ''}">
+     <input class="it-price" type="text" inputmode="decimal" placeholder="0.00" value="${it.unitPrice || ''}">
+    <input class="it-qty" type="text" inputmode="numeric" placeholder="0" value="${it.qty || ''}">
+    <input class="it-foc" type="text" inputmode="numeric" placeholder="0" value="${it.focQty || ''}">
+    <input class="it-disc" type="text" inputmode="decimal" placeholder="0" value="${it.discountPercent || ''}">
+    <input class="it-vat" type="text" inputmode="decimal" placeholder="0" value="${it.vatPercent || ''}">
+    <span class="amt">${fmt(lineAmt)}</span>
+    <span class="amt">${fmt(vatAmt)}</span>
+    <span class="amt">${fmt(lineTotal)}</span>
     <button type="button" class="rm">×</button>
   </div>`;
 }
@@ -725,20 +793,47 @@ function readItemsFromForm() {
     brand: row.querySelector('.it-brand').value,
     unitPrice: parseFloat(row.querySelector('.it-price').value) || 0,
     qty: parseFloat(row.querySelector('.it-qty').value) || 0,
+    focQty: parseFloat(row.querySelector('.it-foc')?.value) || 0,
+    discountPercent: parseFloat(row.querySelector('.it-disc')?.value) || 0,
+    vatPercent: parseFloat(row.querySelector('.it-vat')?.value) || 0,
   }));
 }
 
 function recalcModalTotals() {
   const items = readItemsFromForm();
+
   document.querySelectorAll('#items-wrap .items-row').forEach((row, i) => {
-    row.querySelector('.amt').textContent = fmt(items[i].unitPrice * items[i].qty);
+    const it = items[i];
+    const lineAmt = (it.unitPrice || 0) * (it.qty || 0);
+    const discAmt = lineAmt * (it.discountPercent || 0) / 100;
+    const taxable = lineAmt - discAmt;
+    const vatAmt = taxable * (it.vatPercent || 0) / 100;
+    const lineTotal = taxable + vatAmt;
+
+    const spans = row.querySelectorAll('.amt');
+    spans[0].textContent = fmt(lineAmt);
+    spans[1].textContent = fmt(vatAmt);
+    spans[2].textContent = fmt(lineTotal);
   });
-  const subtotal = items.reduce((s, it) => s + it.unitPrice * it.qty, 0);
-  const vatPct = parseFloat($('#f-vat').value) || 0;
-  const vat = subtotal * vatPct / 100;
+
+  let subtotal = 0, totalDiscount = 0, totalVat = 0;
+  items.forEach(it => {
+    const lineAmt = (it.unitPrice || 0) * (it.qty || 0);
+    const discAmt = lineAmt * (it.discountPercent || 0) / 100;
+    const taxable = lineAmt - discAmt;
+    const vatAmt = taxable * (it.vatPercent || 0) / 100;
+    subtotal += lineAmt;
+    totalDiscount += discAmt;
+    totalVat += vatAmt;
+  });
+
+  const grandTotal = subtotal - totalDiscount + totalVat;
+
   $('#calc-subtotal').textContent = fmt(subtotal);
-  $('#calc-vat').textContent = fmt(vat);
-  $('#calc-total').textContent = fmt(subtotal + vat);
+  const discEl = $('#calc-discount');
+  if (discEl) discEl.textContent = fmt(totalDiscount);
+  $('#calc-vat').textContent = fmt(totalVat);
+  $('#calc-total').textContent = fmt(grandTotal);
 }
 
 $('#items-wrap').addEventListener('input', (e) => {
@@ -755,7 +850,7 @@ $('#items-wrap').addEventListener('input', (e) => {
   recalcModalTotals();
 });
 
-$('#f-vat').addEventListener('input', recalcModalTotals);
+
 
 $('#items-wrap').addEventListener('click', (e) => {
   if (e.target.classList.contains('rm')) { e.target.closest('.items-row').remove(); recalcModalTotals(); }
@@ -870,7 +965,64 @@ async function deletePayment(paymentId) {
   }
 }
 
+function openQuotationModal(id) {
+  id = id ? parseInt(id, 10) : null;
+  editingInvoiceId = id || null;
+  window._editingDocumentType = 'quotation';
+
+  const inv = id ? invoices.find(i => i.id === id) : null;
+  $('#inv-modal-title').textContent = inv ? 'Edit quotation' : 'New quotation';
+  $('#delete-invoice-btn').style.display = inv ? 'inline-block' : 'none';
+  $('#print-btn').style.display = inv ? 'inline-block' : 'none';
+  $('#download-pdf-btn').style.display = inv ? 'inline-block' : 'none';
+
+  populateClientSelect();
+  $('#f-client').value = inv ? inv.clientId : (clients[0]?.id || '');
+  $('#f-lpo').value = inv ? (inv.lpoNumber || '') : '';
+  $('#f-invnum').value = inv ? (inv.invoiceNumber || '') : '(auto-generated)';
+  $('#f-invnum').readOnly = true;
+  $('#f-issued').value = inv ? inv.issued : new Date().toISOString().slice(0, 10);
+  $('#f-due').value = inv ? (inv.due || '') : '';
+  $('#f-status').value = inv ? inv.status : 'Draft';
+
+  // Quotation statuses
+  const statusSel = $('#f-status');
+  if (statusSel) {
+    statusSel.innerHTML = '<option>Draft</option><option>Sent</option><option>Accepted</option><option>Rejected</option>';
+    statusSel.value = inv ? inv.status : 'Draft';
+  }
+
+  // Show "Valid Until" row (add if not exists)
+  const dueField = $('#f-due')?.closest('.field');
+  if (dueField) {
+    let vuField = dueField.parentElement.querySelector('.f-valid-until-field');
+    if (!vuField) {
+      vuField = document.createElement('div');
+      vuField.className = 'field f-valid-until-field';
+      vuField.innerHTML = '<label>Valid Until</label><input type="date" id="f-valid-until">';
+      dueField.parentElement.appendChild(vuField);
+    }
+    vuField.style.display = 'block';
+    const vu = $('#f-valid-until');
+    if (vu) vu.value = inv ? (inv.validUntil || '') : '';
+  }
+
+    // $('#f-vat') removed — no invoice-level VAT% field
+  $('#f-notes').value = inv ? (inv.notes || '') : '';
+  $('#items-wrap').innerHTML = (inv && inv.items && inv.items.length ? inv.items : [{}]).map(itemRow).join('');
+  recalcModalTotals();
+
+  // Hide Payments section for quotations
+  const paySec = $('#payments-section');
+  if (paySec) paySec.style.display = 'none';
+  const addPayBtn = $('#add-payment-btn');
+  if (addPayBtn) addPayBtn.style.display = 'none';
+
+  $('#invoice-overlay').classList.add('show');
+}
+
 function openInvoiceModal(id) {
+  window._editingDocumentType = 'invoice';
   id = id ? parseInt(id, 10) : null;
   editingInvoiceId = id || null;
   const inv = id ? invoices.find(i => i.id === id) : null;
@@ -881,15 +1033,23 @@ function openInvoiceModal(id) {
   populateClientSelect();
   $('#f-client').value = inv ? inv.clientId : (clients[0]?.id || '');
   $('#f-lpo').value = inv ? (inv.lpoNumber || '') : '';
-  $('#f-invnum').value = inv ? (inv.invoiceNumber || '') : '';
+  $('#f-invnum').value = inv ? (inv.invoiceNumber || '') : '(auto-generated)';
+  $('#f-invnum').readOnly = true;
   $('#f-issued').value = inv ? inv.issued : new Date().toISOString().slice(0, 10);
   $('#f-due').value = inv ? inv.due : '';
-  $('#f-status').value = inv ? inv.status : 'Draft';
-  $('#f-vat').value = inv ? (inv.vatPercent || 0) : 0;
+    const statusSel = $('#f-status');
+  if (statusSel) {
+    statusSel.innerHTML = '<option>Draft</option><option>Sent</option><option>Paid</option><option>Overdue</option>';
+    statusSel.value = inv ? inv.status : 'Draft';
+  }
+   vatPercent: 0,
   $('#f-notes').value = inv ? (inv.notes || '') : '';
   $('#items-wrap').innerHTML = (inv && inv.items && inv.items.length ? inv.items : [{}]).map(itemRow).join('');
   recalcModalTotals();
-  $('#invoice-overlay').classList.add('show');
+    const paySec = $('#payments-section');
+  if (paySec) paySec.style.display = 'block';
+  const addPayBtn = $('#add-payment-btn');
+  if (addPayBtn) addPayBtn.style.display = 'inline-block';
 
   if (id) {
     loadPaymentsForInvoice(parseInt(id));
@@ -902,6 +1062,17 @@ function openInvoiceModal(id) {
 }
 
 $('#new-invoice-btn').addEventListener('click', () => openInvoiceModal(null));
+$('#new-quotation-btn')?.addEventListener('click', () => openQuotationModal(null));
+
+// Quotation filter tabs
+document.querySelectorAll('#quot-filter-tabs .tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('#quot-filter-tabs .tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    currentQuotFilter = tab.dataset.filter;
+    renderQuotations();
+  });
+});
 $('#cancel-invoice-btn').addEventListener('click', () => $('#invoice-overlay').classList.remove('show'));
 
 $('#invoice-form').addEventListener('submit', async (e) => {
@@ -911,14 +1082,15 @@ $('#invoice-form').addEventListener('submit', async (e) => {
   const originalText = submitBtn.textContent;
   submitBtn.innerHTML = '<span class="spinner"></span> Saving…';
 
-  const data = {
+    const data = {
+    documentType: window._editingDocumentType || 'invoice',
     clientId: $('#f-client').value,
     lpoNumber: $('#f-lpo').value,
-    invoiceNumber: $('#f-invnum').value,
     issued: $('#f-issued').value,
     due: $('#f-due').value,
+    validUntil: $('#f-valid-until')?.value || null,
     status: $('#f-status').value,
-    vatPercent: parseFloat($('#f-vat').value) || 0,
+    vatPercent: 0,
     notes: $('#f-notes').value,
     items: readItemsFromForm().filter(it => it.name && it.qty > 0),
   };
@@ -976,7 +1148,26 @@ function openPrint() {
   const client = clients.find(c => c.id === inv.clientId) || {};
   const items = inv.items || [];
   const { subtotal, vat, total } = invoiceTotals(inv);
-  const rows = items.map((it, i) => `<tr><td>${i + 1}</td><td>${it.name || ''}</td><td>${it.brand || ''}</td><td class="num">${fmt(it.unitPrice)}</td><td class="num">${it.qty || 0}</td><td class="num">${fmt(it.unitPrice * it.qty)}</td></tr>`).join('');
+   const rows = items.map((it, i) => {
+    const lineAmt = (it.unitPrice || 0) * (it.qty || 0);
+    const discAmt = lineAmt * (it.discountPercent || 0) / 100;
+    const taxable = lineAmt - discAmt;
+    const vatAmt = taxable * (it.vatPercent || 0) / 100;
+    const lineTotal = taxable + vatAmt;
+    return `<tr>
+      <td>${i + 1}</td>
+      <td>${it.name || ''}</td>
+      <td>${it.brand || ''}</td>
+      <td class="num">${fmt(it.unitPrice)}</td>
+      <td class="num">${it.qty || 0}</td>
+      <td class="num">${it.focQty || 0}</td>
+      <td class="num">${it.discountPercent || 0}%</td>
+      <td class="num">${it.vatPercent || 0}%</td>
+      <td class="num">${fmt(lineAmt)}</td>
+      <td class="num">${fmt(vatAmt)}</td>
+      <td class="num">${fmt(lineTotal)}</td>
+    </tr>`;
+  }).join('');
   const logoUrl = company.logo_path ? `${API_URL}/${company.logo_path}` : null;
   const stampUrl = company.stamp_path ? `${API_URL}/${company.stamp_path}` : null;
   $('#print-sheet').innerHTML = `
@@ -984,17 +1175,18 @@ function openPrint() {
       <div>${logoUrl ? `<img src="${logoUrl}" style="max-height:50px; max-width:220px; display:block; margin-bottom:6px;">` : ''}<div class="sheet-company">${company.name || 'Your Company'}</div>
         <div class="sheet-company-meta">${(company.address || '').replace(/\n/g, '<br>')}${company.trn ? ('<br>TRN: ' + company.trn) : ''}${company.phone ? ('<br>' + company.phone) : ''}${company.email ? ('<br>' + company.email) : ''}</div>
       </div>
-      <div class="sheet-title"><h3>TAX INVOICE</h3>${company.trn ? `<div class="trn">TRN. ${company.trn}</div>` : ''}
-        <table class="sheet-box"><tr><td>LPO #</td><td>${inv.lpoNumber || '—'}</td></tr><tr><td>Invoice #</td><td>${inv.invoiceNumber || '—'}</td></tr><tr><td>Date</td><td>${inv.issued || '—'}</td></tr></table>
+            <div class="sheet-title"><h3>${inv.documentType === 'quotation' ? 'QUOTATION' : 'TAX INVOICE'}</h3>${company.trn ? `<div class="trn">TRN. ${company.trn}</div>` : ''}
+                <table class="sheet-box"><tr><td>LPO #</td><td>${inv.lpoNumber || '—'}</td></tr><tr><td>${inv.documentType === 'quotation' ? 'Quotation #' : 'Invoice #'}</td><td>${inv.invoiceNumber || '—'}</td></tr><tr><td>Date</td><td>${inv.issued || '—'}</td></tr>${inv.validUntil ? `<tr><td>Valid Until</td><td>${inv.validUntil}</td></tr>` : ''}</table>
       </div>
     </div>
     <div class="sheet-client"><strong>${client.name || ''}</strong><br>${(client.address || '').replace(/\n/g, '<br>')}${client.trn ? ('<br>TRN: ' + client.trn) : ''}</div>
-    <table class="sheet-table"><thead><tr><th>S#</th><th>Product</th><th>Brand</th><th>Unit price</th><th>Qty</th><th>Amount</th></tr></thead>
+        <table class="sheet-table"><thead><tr><th>S#</th><th>Product</th><th>Brand</th><th>Unit</th><th>Qty</th><th>FOC</th><th>Disc%</th><th>VAT%</th><th>Amount</th><th>VAT</th><th>Total</th></tr></thead>
       <tbody>${rows}</tbody>
       <tfoot>
-        <tr class="sheet-totals"><td colspan="5" style="text-align:right;">Subtotal</td><td class="num">${fmt(subtotal)}</td></tr>
-        <tr class="sheet-totals"><td colspan="5" style="text-align:right;">VAT (${inv.vatPercent || 0}%)</td><td class="num">${fmt(vat)}</td></tr>
-        <tr class="sheet-totals"><td colspan="5" style="text-align:right;">Total</td><td class="num">${fmt(total)}</td></tr>
+        <tr class="sheet-totals"><td colspan="10" style="text-align:right;">Subtotal</td><td class="num">${fmt(subtotal)}</td></tr>
+        <tr class="sheet-totals"><td colspan="10" style="text-align:right;">Total Discount</td><td class="num">${fmt(items.reduce((s, it) => { const a = (it.unitPrice || 0) * (it.qty || 0); return s + a * (it.discountPercent || 0) / 100; }, 0))}</td></tr>
+        <tr class="sheet-totals"><td colspan="10" style="text-align:right;">Total VAT</td><td class="num">${fmt(vat)}</td></tr>
+        <tr class="sheet-totals"><td colspan="10" style="text-align:right;">Grand Total</td><td class="num">${fmt(total)}</td></tr>
       </tfoot>
     </table>
     <div class="sheet-sign">

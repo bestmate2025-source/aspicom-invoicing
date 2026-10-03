@@ -5,6 +5,10 @@ envelope on every return, whitelisted editable fields, a specific DB
 constraint caught ahead of the broader SQLAlchemyError. Here that's a
 duplicate `product` name (inventory.product is UNIQUE) rather than an FK
 conflict — same principle as clients.py's 409, different constraint.
+
+vat_percent on inventory = the DEFAULT VAT% for this product. When the
+product is added to an invoice, this value auto-fills the line item's
+vat_percent. It can still be overridden per-invoice.
 """
 
 from __future__ import annotations
@@ -20,8 +24,8 @@ from utils.responses import api_response
 
 inventory_bp = Blueprint("inventory", __name__)
 
-EDITABLE_FIELDS = {"product", "brand", "price", "par_level", "balance"}
-DECIMAL_FIELDS = {"price", "par_level", "balance"}
+EDITABLE_FIELDS = {"product", "brand", "price", "vat_percent", "par_level", "balance"}
+DECIMAL_FIELDS = {"price", "vat_percent", "par_level", "balance"}
 
 
 def _to_decimal(value) -> Decimal:
@@ -30,9 +34,6 @@ def _to_decimal(value) -> Decimal:
     Never via float() directly — float(0.1) already carries binary rounding
     error before Decimal ever sees it (Decimal(0.1) != Decimal('0.1')).
     Going through str() first is what actually gets money math right.
-
-    Raises:
-        ValueError: If `value` isn't a valid number.
     """
     try:
         return Decimal(str(value))
@@ -84,10 +85,15 @@ def create_inventory_item():
             except ValueError as exc:
                 return api_response(error="invalid_type", message=f"'{field}': {exc}"), 400
 
+    # Validate vat_percent range
+    if "vat_percent" in decimals and not (Decimal("0") <= decimals["vat_percent"] <= Decimal("100")):
+        return api_response(error="invalid_type", message="'vat_percent' must be between 0 and 100."), 400
+
     item = Inventory(
         product=product.strip(),
         brand=body.get("brand"),
         price=decimals.get("price", Decimal("0")),
+        vat_percent=decimals.get("vat_percent", Decimal("5")),
         par_level=decimals.get("par_level", Decimal("0")),
         balance=decimals.get("balance", Decimal("0")),
     )
@@ -108,7 +114,7 @@ def create_inventory_item():
 
 @inventory_bp.route("/<int:item_id>", methods=["PUT"])
 def update_inventory_item(item_id: int):
-    """PUT /api/inventory/<id> — update. Whitelist: product, brand, price, par_level, balance."""
+    """PUT /api/inventory/<id> — update. Whitelist: product, brand, price, vat_percent, par_level, balance."""
     item = Inventory.query.get(item_id)
     if item is None:
         return api_response(error="not_found", message=f"No inventory item with id {item_id}."), 404
@@ -136,6 +142,9 @@ def update_inventory_item(item_id: int):
                 decimals[field] = _to_decimal(body[field])
             except ValueError as exc:
                 return api_response(error="invalid_type", message=f"'{field}': {exc}"), 400
+
+    if "vat_percent" in decimals and not (Decimal("0") <= decimals["vat_percent"] <= Decimal("100")):
+        return api_response(error="invalid_type", message="'vat_percent' must be between 0 and 100."), 400
 
     if "product" in body:
         item.product = body["product"].strip()
