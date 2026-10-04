@@ -53,6 +53,7 @@ class Invoice(db.Model):
         nullable=False, default="invoice", index=True,
     )
     client_id = db.Column(db.Integer, db.ForeignKey("clients.id", ondelete="RESTRICT"), nullable=False)
+    company_id = db.Column(db.Integer, db.ForeignKey("company.id", ondelete="RESTRICT"), nullable=False, default=1)
     lpo_number = db.Column(db.String(100))
     invoice_number = db.Column(db.String(100), nullable=False, unique=True)
     issued = db.Column(db.Date)
@@ -71,6 +72,7 @@ class Invoice(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     client = db.relationship("Client", back_populates="invoices")
+    company = db.relationship("Company")
     items = db.relationship("InvoiceItem", back_populates="invoice",
                              cascade="all, delete-orphan")
     payments = db.relationship("InvoicePayment", back_populates="invoice",
@@ -83,6 +85,7 @@ class Invoice(db.Model):
             "id": self.id,
             "document_type": self.document_type,
             "client_id": self.client_id,
+            "company_id": self.company_id,
             "lpo_number": self.lpo_number,
             "invoice_number": self.invoice_number,
             "issued": self.issued.isoformat() if self.issued else None,
@@ -196,7 +199,7 @@ class Inventory(db.Model):
 class Company(db.Model):
     __tablename__ = "company"
 
-    id = db.Column(db.SmallInteger, primary_key=True, default=1)
+    id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255))
     address = db.Column(db.Text)
     po_box = db.Column(db.String(50))

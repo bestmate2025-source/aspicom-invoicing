@@ -17,6 +17,7 @@ from flask_cors import CORS
 
 from extensions import db
 from routes.clients import clients_bp
+from routes.companies import companies_bp
 from routes.company import company_bp
 from routes.inventory import inventory_bp
 from routes.invoices import invoices_bp, payments_bp
@@ -68,6 +69,7 @@ def create_app() -> Flask:
     app.register_blueprint(payments_bp, url_prefix="/api")  # DELETE /api/payments/<id> — see routes/invoices.py
     app.register_blueprint(inventory_bp, url_prefix="/api/inventory")
     app.register_blueprint(company_bp, url_prefix="/api/company")
+    app.register_blueprint(companies_bp, url_prefix="/api/companies")  # list/create/edit companies + per-company logo/stamp
     app.register_blueprint(pdf_bp, url_prefix="/api")  # /api/parse-pdf, /api/import-pdf
     app.register_blueprint(statements_bp, url_prefix="/api")  # GET /api/clients/<id>/statement — see routes/statements.py
 
