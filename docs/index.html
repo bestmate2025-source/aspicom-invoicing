@@ -120,7 +120,9 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
 .sheet-table th{background:#F0EFEA; font-size:11px; text-transform:uppercase;}
 .sheet-table td.num{text-align:right;}
 .sheet-totals td{font-weight:600;}
-.sheet-sign{margin-top:60px; display:flex; justify-content:space-between; align-items:flex-end;}
+.sheet-sign{margin-top:60px; display:flex; flex-direction:column; align-items:flex-start; gap:12px;}
+.sheet-sign img{order:-1; flex:0 0 auto; max-height:90px; max-width:150px; object-fit:contain; display:block;}
+.sheet-sign img{flex:0 0 auto; max-height:90px; max-width:150px; object-fit:contain; display:block;}
 .sheet-stamp-box{border:1px dashed #bbb; border-radius:6px; width:140px; height:90px; display:flex; align-items:center; justify-content:center; font-size:11px; color:#999;}
 .sheet-sign-text{font-size:13px; line-height:1.6;}
 .print-actions{padding:16px 24px; border-top:1px solid #eee; display:flex; justify-content:flex-end; gap:8px;}
@@ -300,11 +302,22 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
   </div>
 
   <div id="view-company" style="display:none;">
-    <h1>Company details</h1>
-    <p class="lede">Prints in the header of every invoice.</p>
+    <div id="company-list-state">
+      <h1>Companies</h1>
+      <p class="lede">Manage your companies. Each has its own details, logo and stamp.</p>
+      <div class="toolbar" style="justify-content:flex-end;">
+        <button class="btn" id="new-company-btn">+ Add company</button>
+      </div>
+      <div class="clients-list" id="company-list"></div>
+    </div>
+    <div id="company-edit-state" style="display:none;">
+    <button class="btn ghost" id="back-to-companies-btn" type="button" style="margin-bottom:14px;">&larr; Back to Companies</button>
+    <h1 id="company-form-title">Edit company</h1>
+    <p class="lede">Prints in the header of every invoice this company issues.</p>
     <form id="company-form" style="max-width:420px;">
       <div class="field"><label>Company name</label><input type="text" id="co-name" required></div>
       <div class="field"><label>Address</label><textarea id="co-address"></textarea></div>
+      <div class="field"><label>PO Box</label><input type="text" id="co-po-box"></div>
       <div class="field"><label>TRN</label><input type="text" id="co-trn"></div>
       <div class="field"><label>Phone</label><input type="text" id="co-phone"></div>
       <div class="field"><label>Email</label><input type="email" id="co-email"></div>
@@ -316,8 +329,10 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
       <div class="field"><label>Signature / stamp image</label><input type="file" accept="image/*" id="co-stamp-file">
         <div style="margin-top:8px;"><img id="co-stamp-preview" style="max-height:80px; display:none; border:1px solid var(--line); border-radius:4px;"></div>
       </div>
+      <div id="co-upload-note" style="display:none; font-size:13px; color:var(--sub); margin-bottom:14px;">Save the company first to upload logo and stamp.</div>
       <button type="submit" class="btn">Save</button>
     </form>
+    </div>
   </div>
 </main>
 
@@ -550,6 +565,8 @@ let invoices = [];
 let clients = [];
 let inventory = [];
 let company = {};
+let companies = [];
+let editingCompanyId = null;
 let editingInvoiceId = null;
 let editingClientId = null;
 let editingInvItemId = null;
@@ -1352,6 +1369,7 @@ $('#delete-client-btn').addEventListener('click', async () => {
 function fillCompanyForm() {
   $('#co-name').value = company.name || '';
   $('#co-address').value = company.address || '';
+  $('#co-po-box').value = company.po_box || '';
   $('#co-trn').value = company.trn || '';
   $('#co-phone').value = company.phone || '';
   $('#co-email').value = company.email || '';
@@ -1373,9 +1391,10 @@ async function uploadImage(file, endpoint) {
 $('#co-logo-file').addEventListener('change', async (e) => {
   const f = e.target.files[0]; if (!f) return;
   try {
-    const updated = await uploadImage(f, '/api/company/logo');
+    if (!editingCompanyId) { toastErr('Save the company first to upload a logo.'); e.target.value = ''; return; }
+    const updated = await uploadImage(f, `/api/companies/${editingCompanyId}/logo`);
     toastOk('Logo uploaded');
-    company.logo_path = updated.logo_path;
+    if (editingCompanyId === 1) company.logo_path = updated.logo_path;
     $('#co-logo-preview').src = `${API_URL}/${updated.logo_path}?t=${Date.now()}`;
     $('#co-logo-preview').style.display = 'block';
   } catch (err) { toastErr(err.message); }
@@ -1384,9 +1403,10 @@ $('#co-logo-file').addEventListener('change', async (e) => {
 $('#co-stamp-file').addEventListener('change', async (e) => {
   const f = e.target.files[0]; if (!f) return;
   try {
-    const updated = await uploadImage(f, '/api/company/stamp');
+    if (!editingCompanyId) { toastErr('Save the company first to upload a stamp.'); e.target.value = ''; return; }
+    const updated = await uploadImage(f, `/api/companies/${editingCompanyId}/stamp`);
     toastOk('Stamp uploaded');
-    company.stamp_path = updated.stamp_path;
+    if (editingCompanyId === 1) company.stamp_path = updated.stamp_path;
     $('#co-stamp-preview').src = `${API_URL}/${updated.stamp_path}?t=${Date.now()}`;
     $('#co-stamp-preview').style.display = 'block';
   } catch (err) { toastErr(err.message); }
@@ -1397,6 +1417,7 @@ $('#company-form').addEventListener('submit', async (e) => {
   const payload = {
     name: $('#co-name').value.trim(),
     address: $('#co-address').value.trim(),
+    po_box: $('#co-po-box').value.trim(),
     trn: $('#co-trn').value.trim(),
     phone: $('#co-phone').value.trim(),
     email: $('#co-email').value.trim(),
@@ -1404,15 +1425,92 @@ $('#company-form').addEventListener('submit', async (e) => {
     signee: $('#co-signee').value.trim(),
   };
   try {
-    const updated = await api('/api/company', {
-      method: 'PUT',
+    const isNew = !editingCompanyId;
+    const saved = await api(isNew ? '/api/companies' : `/api/companies/${editingCompanyId}`, {
+      method: isNew ? 'POST' : 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    company = { ...company, ...updated };
-    toastOk('Company details saved');
+    if (saved && saved.id === 1) company = { ...company, ...saved };
+    toastOk(isNew ? 'Company added' : 'Company details saved');
+    await loadCompanies();
+    showCompanyList();
+    renderCompanyList();
   } catch (err) { toastErr(err.message); }
 });
+
+async function loadCompanies() {
+  companies = await api('/api/companies');
+}
+
+function renderCompanyList() {
+  $('#company-list').innerHTML = companies.length ? companies.map(c => `
+    <div class="client-row" data-id="${c.id}">
+      <div>
+        <div class="cname">${c.name || ''}</div>
+        <div class="cmeta">${[c.trn ? 'TRN ' + c.trn : '', c.po_box ? 'PO Box ' + c.po_box : ''].filter(Boolean).join(' | ')}</div>
+        <div class="cmeta">${(c.address || '').replace(/\n/g, ', ')}</div>
+      </div>
+    </div>
+  `).join('') : `<div class="empty">No companies yet.</div>`;
+  document.querySelectorAll('#company-list .client-row').forEach(el => el.addEventListener('click', () => openCompanyForm(parseInt(el.dataset.id, 10))));
+}
+
+function showCompanyList() {
+  editingCompanyId = null;
+  $('#company-edit-state').style.display = 'none';
+  $('#company-list-state').style.display = 'block';
+}
+
+function fillCompanyFormFrom(c) {
+  $('#co-name').value = c.name || '';
+  $('#co-address').value = c.address || '';
+  $('#co-po-box').value = c.po_box || '';
+  $('#co-trn').value = c.trn || '';
+  $('#co-phone').value = c.phone || '';
+  $('#co-email').value = c.email || '';
+  $('#co-website').value = c.website || '';
+  $('#co-signee').value = c.signee || '';
+  const logo = $('#co-logo-preview');
+  const stamp = $('#co-stamp-preview');
+  if (c.logo_path) { logo.src = `${API_URL}/${c.logo_path}?t=${Date.now()}`; logo.style.display = 'block'; }
+  else { logo.removeAttribute('src'); logo.style.display = 'none'; }
+  if (c.stamp_path) { stamp.src = `${API_URL}/${c.stamp_path}?t=${Date.now()}`; stamp.style.display = 'block'; }
+  else { stamp.removeAttribute('src'); stamp.style.display = 'none'; }
+  $('#co-logo-file').value = '';
+  $('#co-stamp-file').value = '';
+}
+
+async function openCompanyForm(id) {
+  let c = {};
+  if (id) {
+    try { c = await api(`/api/companies/${id}`); }
+    catch (err) { toastErr(err.message); return; }
+  }
+  editingCompanyId = id || null;
+  fillCompanyFormFrom(c);
+  $('#company-form-title').textContent = id ? 'Edit company' : 'Add company';
+  const canUpload = !!editingCompanyId;
+  $('#co-logo-file').disabled = !canUpload;
+  $('#co-stamp-file').disabled = !canUpload;
+  $('#co-upload-note').style.display = canUpload ? 'none' : 'block';
+  $('#company-list-state').style.display = 'none';
+  $('#company-edit-state').style.display = 'block';
+}
+
+$('#new-company-btn').addEventListener('click', () => openCompanyForm(null));
+$('#back-to-companies-btn').addEventListener('click', () => showCompanyList());
+
+document.querySelectorAll('.nav-item').forEach(btn => {
+  if (btn.dataset.view === 'company') {
+    btn.addEventListener('click', async () => {
+      showCompanyList();
+      try { await loadCompanies(); renderCompanyList(); } catch (err) { toastErr(err.message); }
+    });
+  }
+});
+
+loadCompanies().then(renderCompanyList).catch(() => {});
 
 let pendingImportFile = null;
 
