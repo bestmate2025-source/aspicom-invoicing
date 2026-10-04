@@ -28,7 +28,7 @@ from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from extensions import db
-from models import Client, Inventory, Invoice, InvoiceAudit, InvoiceItem, InvoicePayment
+from models import Client, Company, Inventory, Invoice, InvoiceAudit, InvoiceItem, InvoicePayment
 from utils.responses import api_response
 
 invoices_bp = Blueprint("invoices", __name__)
@@ -39,11 +39,11 @@ INVOICE_STATUSES = {"Draft", "Sent", "Paid", "Overdue"}
 QUOTATION_STATUSES = {"Draft", "Sent", "Accepted", "Rejected"}
 ALLOWED_PAYMENT_METHODS = {"cash", "bank_transfer", "card", "cheque", "other"}
 TOP_LEVEL_EDITABLE_FIELDS = {
-    "client_id", "lpo_number", "issued", "due", "valid_until",
+    "client_id", "company_id", "lpo_number", "issued", "due", "valid_until",
     "status", "vat_percent", "notes", "items",
 }
 AUDITED_SCALAR_FIELDS = (
-    "client_id", "lpo_number", "invoice_number", "issued", "due",
+    "client_id", "company_id", "lpo_number", "invoice_number", "issued", "due",
     "valid_until", "status", "vat_percent", "notes", "subtotal", "vat", "total",
 )
 TWO_DP = Decimal("0.01")
@@ -359,6 +359,10 @@ def create_invoice():
     if not isinstance(client_id, int):
         return api_response(error="missing_field", message="'client_id' is required and must be an integer."), 400
 
+    company_id = body.get("company_id", 1)
+    if not isinstance(company_id, int):
+        return api_response(error="invalid_type", message="'company_id' must be an integer."), 400
+
     status = body.get("status", "Draft")
     if status not in _allowed_statuses(document_type):
         return api_response(
@@ -397,6 +401,11 @@ def create_invoice():
             error="fk_conflict", message=f"No client with id {client_id}. Create the client first."
         ), 409
 
+    if Company.query.get(company_id) is None:
+        return api_response(
+            error="fk_conflict", message=f"No company with id {company_id}."
+        ), 409
+
     # Auto-generate document number based on issued date
     invoice_number = _generate_document_number(document_type, issued)
 
@@ -406,7 +415,7 @@ def create_invoice():
 
     invoice = Invoice(
         document_type=document_type,
-        client_id=client_id, lpo_number=lpo_number, invoice_number=invoice_number,
+        client_id=client_id, company_id=company_id, lpo_number=lpo_number, invoice_number=invoice_number,
         issued=issued, due=due, valid_until=valid_until, status=status,
         vat_percent=vat_percent, notes=notes,
         subtotal=subtotal, vat=total_vat, total=total,
@@ -480,6 +489,14 @@ def update_invoice(invoice_id: int):
             return api_response(error="fk_conflict", message=f"No client with id {body['client_id']}."), 409
         new_client_id = body["client_id"]
 
+    new_company_id = invoice.company_id
+    if "company_id" in body:
+        if not isinstance(body["company_id"], int):
+            return api_response(error="invalid_type", message="'company_id' must be an integer."), 400
+        if Company.query.get(body["company_id"]) is None:
+            return api_response(error="fk_conflict", message=f"No company with id {body['company_id']}."), 409
+        new_company_id = body["company_id"]
+
     new_status = invoice.status
     if "status" in body:
         if body["status"] not in _allowed_statuses(invoice.document_type):
@@ -530,6 +547,7 @@ def update_invoice(invoice_id: int):
     before = {field: getattr(invoice, field) for field in AUDITED_SCALAR_FIELDS}
 
     invoice.client_id = new_client_id
+    invoice.company_id = new_company_id
     invoice.status = new_status
     invoice.vat_percent = new_vat_percent
     invoice.issued = new_issued

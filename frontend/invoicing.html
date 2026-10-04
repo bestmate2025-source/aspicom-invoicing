@@ -340,6 +340,9 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
   <div class="modal" style="max-width:1400px; width:95vw;">
         <h2 id="inv-modal-title">New invoice</h2>
     <form id="invoice-form">
+      <div class="section-title">Issuing company</div>
+      <div class="field"><select id="f-company" required></select></div>
+
       <div class="section-title">Client</div>
       <div class="field"><select id="f-client" required></select></div>
 
@@ -581,6 +584,7 @@ function apiInvToUi(inv) {
     id: inv.id,
     documentType: inv.document_type || 'invoice',
     clientId: inv.client_id,
+    companyId: parseInt(inv.company_id, 10) || 1,
     lpoNumber: inv.lpo_number,
     invoiceNumber: inv.invoice_number,
     issued: inv.issued,
@@ -614,6 +618,7 @@ function uiInvToApi(ui) {
   return {
     document_type: ui.documentType || 'invoice',
     client_id: parseInt(ui.clientId),
+    company_id: parseInt(ui.companyId, 10) || 1,
     lpo_number: ui.lpoNumber || null,
     issued: ui.issued || null,
     due: ui.due || null,
@@ -739,6 +744,15 @@ function populateClientSelect() {
   $('#f-client').innerHTML = clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('') || '<option value="">Add a client first</option>';
 }
 
+function populateCompanySelect(inv) {
+  const list = (companies.length ? companies : [{ id: 1, name: company.name || 'Aspicom LLC' }]).slice();
+  const want = inv ? (inv.companyId || 1) : 1;
+  if (!list.some(c => c.id === want)) list.push({ id: want, name: 'Company #' + want });
+  $('#f-company').innerHTML = list.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  $('#f-company').value = String(want);
+  $('#f-company').disabled = !!inv;
+}
+
 function renderInventory() {
   $('#inventory-rows').innerHTML = inventory.length ? inventory.map(it => {
     const low = Number(it.balance) || 0;
@@ -767,7 +781,7 @@ async function loadAll() {
       api('/api/company'),
     ]);
     invoices = inv.map(apiInvToUi);
-    clients = cl.map(c => ({ id: c.id, name: c.name, address: c.address, trn: c.trn, email: c.email }));
+    clients = cl.map(c => ({ id: c.id, name: c.name, address: c.address, trn: c.trn, po_box: c.po_box, email: c.email }));
     inventory = invn.map(i => ({ id: i.id, product: i.product, brand: i.brand, price: parseFloat(i.price) || 0, par_level: parseFloat(i.par_level) || 0, balance: parseFloat(i.balance) || 0 }));
     company = {
       name: co.name, address: co.address, trn: co.trn, phone: co.phone,
@@ -1013,6 +1027,7 @@ function openQuotationModal(id) {
   $('#print-btn').style.display = inv ? 'inline-block' : 'none';
   $('#download-pdf-btn').style.display = inv ? 'inline-block' : 'none';
 
+  populateCompanySelect(inv);
   populateClientSelect();
   $('#f-client').value = inv ? inv.clientId : (clients[0]?.id || '');
   $('#f-lpo').value = inv ? (inv.lpoNumber || '') : '';
@@ -1067,6 +1082,7 @@ function openInvoiceModal(id) {
   $('#delete-invoice-btn').style.display = inv ? 'inline-block' : 'none';
   $('#print-btn').style.display = inv ? 'inline-block' : 'none';
   $('#download-pdf-btn').style.display = inv ? 'inline-block' : 'none';
+  populateCompanySelect(inv);
   populateClientSelect();
   $('#f-client').value = inv ? inv.clientId : (clients[0]?.id || '');
   $('#f-lpo').value = inv ? (inv.lpoNumber || '') : '';
@@ -1123,6 +1139,7 @@ $('#invoice-form').addEventListener('submit', async (e) => {
     const data = {
     documentType: window._editingDocumentType || 'invoice',
     clientId: $('#f-client').value,
+    companyId: parseInt($('#f-company').value, 10) || 1,
     lpoNumber: $('#f-lpo').value,
     issued: $('#f-issued').value,
     due: $('#f-due').value,
@@ -1184,6 +1201,7 @@ function openPrint() {
   if (!editingInvoiceId) return;
   const inv = invoices.find(i => i.id === editingInvoiceId);
   const client = clients.find(c => c.id === inv.clientId) || {};
+  const invCompany = companies.find(c => c.id === inv.companyId) || companies[0] || company;
   const items = inv.items || [];
   const { subtotal, vat, total } = invoiceTotals(inv);
    const rows = items.map((it, i) => {
@@ -1206,18 +1224,18 @@ function openPrint() {
       <td class="num">${fmt(lineTotal)}</td>
     </tr>`;
   }).join('');
-  const logoUrl = company.logo_path ? `${API_URL}/${company.logo_path}` : null;
-  const stampUrl = company.stamp_path ? `${API_URL}/${company.stamp_path}` : null;
+  const logoUrl = invCompany.logo_path ? `${API_URL}/${invCompany.logo_path}` : null;
+  const stampUrl = invCompany.stamp_path ? `${API_URL}/${invCompany.stamp_path}` : null;
   $('#print-sheet').innerHTML = `
     <div class="sheet-top">
-      <div>${logoUrl ? `<img src="${logoUrl}" style="max-height:50px; max-width:220px; display:block; margin-bottom:6px;">` : ''}<div class="sheet-company">${company.name || 'Your Company'}</div>
-        <div class="sheet-company-meta">${(company.address || '').replace(/\n/g, '<br>')}${company.trn ? ('<br>TRN: ' + company.trn) : ''}${company.phone ? ('<br>' + company.phone) : ''}${company.email ? ('<br>' + company.email) : ''}</div>
+      <div>${logoUrl ? `<img src="${logoUrl}" style="max-height:50px; max-width:220px; display:block; margin-bottom:6px;">` : ''}<div class="sheet-company">${invCompany.name || 'Your Company'}</div>
+        <div class="sheet-company-meta">${(invCompany.address || '').replace(/\n/g, '<br>')}${invCompany.trn ? ('<br>TRN: ' + invCompany.trn) : ''}${invCompany.phone ? ('<br>' + invCompany.phone) : ''}${invCompany.email ? ('<br>' + invCompany.email) : ''}${invCompany.po_box ? ('<br>PO Box ' + invCompany.po_box) : ''}</div>
       </div>
-            <div class="sheet-title"><h3>${inv.documentType === 'quotation' ? 'QUOTATION' : 'TAX INVOICE'}</h3>${company.trn ? `<div class="trn">TRN. ${company.trn}</div>` : ''}
+            <div class="sheet-title"><h3>${inv.documentType === 'quotation' ? 'QUOTATION' : 'TAX INVOICE'}</h3>${invCompany.trn ? `<div class="trn">TRN. ${invCompany.trn}</div>` : ''}
                 <table class="sheet-box"><tr><td>LPO #</td><td>${inv.lpoNumber || '—'}</td></tr><tr><td>${inv.documentType === 'quotation' ? 'Quotation #' : 'Invoice #'}</td><td>${inv.invoiceNumber || '—'}</td></tr><tr><td>Date</td><td>${inv.issued || '—'}</td></tr>${inv.validUntil ? `<tr><td>Valid Until</td><td>${inv.validUntil}</td></tr>` : ''}</table>
       </div>
     </div>
-    <div class="sheet-client"><strong>${client.name || ''}</strong><br>${(client.address || '').replace(/\n/g, '<br>')}${client.trn ? ('<br>TRN: ' + client.trn) : ''}</div>
+    <div class="sheet-client"><strong>${client.name || ''}</strong><br>${(client.address || '').replace(/\n/g, '<br>')}${client.trn ? ('<br>TRN: ' + client.trn) : ''}${client.po_box ? ('<br>PO Box ' + client.po_box) : ''}</div>
         <table class="sheet-table"><thead><tr><th>S#</th><th>Product</th><th>Brand</th><th>Unit</th><th>Qty</th><th>FOC</th><th>Disc%</th><th>VAT%</th><th>Amount</th><th>VAT</th><th>Total</th></tr></thead>
       <tbody>${rows}</tbody>
       <tfoot>
@@ -1228,7 +1246,7 @@ function openPrint() {
       </tfoot>
     </table>
     <div class="sheet-sign">
-      <div class="sheet-sign-text">Best regards,<br>${company.signee || 'Accounts'}<br>${company.name || ''}${company.phone ? ('<br>Mobile # ' + company.phone) : ''}</div>
+      <div class="sheet-sign-text">Best regards,<br>${invCompany.signee || 'Accounts'}<br>${invCompany.name || ''}${invCompany.phone ? ('<br>Mobile # ' + invCompany.phone) : ''}</div>
       ${stampUrl ? `<img src="${stampUrl}" style="max-height:100px; max-width:160px;">` : '<div class="sheet-stamp-box">Stamp &amp; signature</div>'}
     </div>
   `;
