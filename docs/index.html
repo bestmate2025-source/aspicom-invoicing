@@ -127,6 +127,12 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
 .sheet-sign-text{font-size:13px; line-height:1.6;}
 .print-actions{padding:16px 24px; border-top:1px solid #eee; display:flex; justify-content:flex-end; gap:8px;}
 #toast-stack{position:fixed; bottom:20px; right:20px; display:flex; flex-direction:column; gap:8px; z-index:100; max-width:340px;}
+.client-option{padding:9px 12px; font-size:14px; cursor:pointer; border-bottom:1px solid var(--line); transition:background 0.1s;}
+.client-option:last-child{border-bottom:none;}
+.client-option:hover, .client-option.active{background:var(--pine-soft); color:var(--pine);}
+.client-option .co-name{font-weight:600;}
+.client-option .co-meta{font-size:12px; color:var(--sub); margin-top:2px;}
+.client-option-empty{padding:12px; font-size:13px; color:var(--sub); text-align:center;}
 .toast{padding:12px 16px; border-radius:8px; box-shadow:var(--shadow-lg); font-size:14px; font-weight:500; color:#fff; opacity:0; transform:translateY(10px); animation:toastIn 0.25s forwards; display:flex; align-items:center; gap:8px;}
 .toast.success{background:var(--pine);}
 .toast.error{background:var(--danger);}
@@ -352,7 +358,11 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
       </div>
 
       <div class="section-title">Client</div>
-      <div class="field"><select id="f-client" required></select></div>
+      <div class="field" style="position:relative;">
+        <input type="text" id="f-client-search" placeholder="Type to search clients..." autocomplete="off" required>
+        <select id="f-client" required style="display:none;"></select>
+        <div id="f-client-dropdown" style="display:none; position:absolute; top:100%; left:0; right:0; max-height:220px; overflow-y:auto; background:var(--surface); border:1px solid var(--line); border-radius:6px; box-shadow:var(--shadow-md); z-index:50; margin-top:2px;"></div>
+      </div>
 
       <div class="section-title">Invoice details</div>
       <div class="grid2">
@@ -755,6 +765,94 @@ function populateClientSelect() {
   $('#f-client').innerHTML = clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('') || '<option value="">Add a client first</option>';
 }
 
+// --- Searchable client picker ---
+let _clientActiveIndex = -1;
+let _clientFiltered = [];
+
+function _clientSyncFromId() {
+  const id = $('#f-client').value;
+  const c = clients.find(x => String(x.id) === String(id));
+  $('#f-client-search').value = c ? c.name : '';
+}
+
+function _clientRenderDropdown(query) {
+  const q = (query || '').trim().toLowerCase();
+  let list = clients.slice();
+  if (q) {
+    const starts = list.filter(c => (c.name || '').toLowerCase().startsWith(q));
+    const contains = list.filter(c => !(c.name || '').toLowerCase().startsWith(q) && (c.name || '').toLowerCase().includes(q));
+    list = starts.concat(contains);
+  } else {
+    list.sort((a, b) => (a.name || '').toLowerCase().localeCompare((b.name || '').toLowerCase()));
+  }
+  _clientFiltered = list;
+  _clientActiveIndex = list.length ? 0 : -1;
+
+  const box = document.getElementById('f-client-dropdown');
+  if (!box) return;
+  if (!list.length) {
+    box.innerHTML = '<div class="client-option-empty">No clients found</div>';
+  } else {
+    box.innerHTML = list.map((c, i) => `
+      <div class="client-option${i === _clientActiveIndex ? ' active' : ''}" data-id="${c.id}" data-idx="${i}">
+        <div class="co-name">${c.name || ''}</div>
+        ${c.trn || c.po_box ? `<div class="co-meta">${[c.trn ? 'TRN ' + c.trn : '', c.po_box ? 'PO Box ' + c.po_box : ''].filter(Boolean).join(' | ')}</div>` : ''}
+      </div>
+    `).join('');
+  }
+  box.style.display = 'block';
+}
+
+function _clientPickIndex(idx) {
+  if (idx < 0 || idx >= _clientFiltered.length) return;
+  const c = _clientFiltered[idx];
+  $('#f-client').value = c.id;
+  $('#f-client-search').value = c.name;
+  document.getElementById('f-client-dropdown').style.display = 'none';
+}
+
+function _clientSetActive(idx) {
+  if (idx < 0 || idx >= _clientFiltered.length) return;
+  _clientActiveIndex = idx;
+  document.querySelectorAll('#f-client-dropdown .client-option').forEach((el, i) => {
+    el.classList.toggle('active', i === idx);
+    if (i === idx) el.scrollIntoView({ block: 'nearest' });
+  });
+}
+
+function initClientSearch() {
+  const input = document.getElementById('f-client-search');
+  const box = document.getElementById('f-client-dropdown');
+  if (!input || !box) return;
+  if (input.dataset.bound === '1') return;
+  input.dataset.bound = '1';
+
+  input.addEventListener('input', () => {
+    $('#f-client').value = '';
+    _clientRenderDropdown(input.value);
+  });
+  input.addEventListener('focus', () => {
+    _clientRenderDropdown(input.value);
+  });
+  input.addEventListener('keydown', (e) => {
+    if (box.style.display === 'none') {
+      if (e.key === 'ArrowDown') { _clientRenderDropdown(input.value); e.preventDefault(); }
+      return;
+    }
+    if (e.key === 'ArrowDown') { _clientSetActive(Math.min(_clientActiveIndex + 1, _clientFiltered.length - 1)); e.preventDefault(); }
+    else if (e.key === 'ArrowUp') { _clientSetActive(Math.max(_clientActiveIndex - 1, 0)); e.preventDefault(); }
+    else if (e.key === 'Enter') { if (_clientActiveIndex >= 0) { _clientPickIndex(_clientActiveIndex); e.preventDefault(); } }
+    else if (e.key === 'Escape') { box.style.display = 'none'; }
+  });
+  box.addEventListener('mousedown', (e) => {
+    const row = e.target.closest('.client-option');
+    if (row) { e.preventDefault(); _clientPickIndex(parseInt(row.dataset.idx, 10)); }
+  });
+  document.addEventListener('click', (e) => {
+    if (!input.contains(e.target) && !box.contains(e.target)) box.style.display = 'none';
+  });
+}
+
 function populateCompanySelect(inv) {
   const list = (companies.length ? companies : [{ id: 1, name: company.name || 'Aspicom LLC' }]).slice();
   const want = inv ? (inv.companyId || 1) : 1;
@@ -1045,6 +1143,7 @@ function openQuotationModal(id) {
   populateCompanySelect(inv);
   populateClientSelect();
   $('#f-client').value = inv ? inv.clientId : (clients[0]?.id || '');
+  _clientSyncFromId();
   $('#f-lpo').value = inv ? (inv.lpoNumber || '') : '';
   $('#f-invnum').value = inv ? (inv.invoiceNumber || '') : '(auto-generated)';
   $('#f-invnum').readOnly = true;
@@ -1100,6 +1199,7 @@ function openInvoiceModal(id) {
   populateCompanySelect(inv);
   populateClientSelect();
   $('#f-client').value = inv ? inv.clientId : (clients[0]?.id || '');
+  _clientSyncFromId();
   $('#f-lpo').value = inv ? (inv.lpoNumber || '') : '';
   $('#f-invnum').value = inv ? (inv.invoiceNumber || '') : '(auto-generated)';
   $('#f-invnum').readOnly = true;
@@ -1880,6 +1980,7 @@ document.querySelectorAll('.nav-item').forEach(btn => {
 });
 loadAll();
 loadSupplierBills();
+initClientSearch();
 </script>
 </body>
 </html>
