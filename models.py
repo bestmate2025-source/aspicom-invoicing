@@ -54,6 +54,7 @@ class Invoice(db.Model):
     )
     client_id = db.Column(db.Integer, db.ForeignKey("clients.id", ondelete="RESTRICT"), nullable=False)
     company_id = db.Column(db.Integer, db.ForeignKey("company.id", ondelete="RESTRICT"), nullable=False, default=1)
+    currency = db.Column(db.String(3), nullable=False, default="USD")
     lpo_number = db.Column(db.String(100))
     invoice_number = db.Column(db.String(100), nullable=False, unique=True)
     issued = db.Column(db.Date)
@@ -86,6 +87,7 @@ class Invoice(db.Model):
             "document_type": self.document_type,
             "client_id": self.client_id,
             "company_id": self.company_id,
+            "currency": self.currency or "USD",
             "lpo_number": self.lpo_number,
             "invoice_number": self.invoice_number,
             "issued": self.issued.isoformat() if self.issued else None,

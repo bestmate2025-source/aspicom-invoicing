@@ -38,12 +38,13 @@ ALLOWED_DOCUMENT_TYPES = {"invoice", "quotation"}
 INVOICE_STATUSES = {"Draft", "Sent", "Paid", "Overdue"}
 QUOTATION_STATUSES = {"Draft", "Sent", "Accepted", "Rejected"}
 ALLOWED_PAYMENT_METHODS = {"cash", "bank_transfer", "card", "cheque", "other"}
+ALLOWED_CURRENCIES = {"USD", "AED"}
 TOP_LEVEL_EDITABLE_FIELDS = {
-    "client_id", "company_id", "lpo_number", "issued", "due", "valid_until",
+    "client_id", "company_id", "currency", "lpo_number", "issued", "due", "valid_until",
     "status", "vat_percent", "notes", "items",
 }
 AUDITED_SCALAR_FIELDS = (
-    "client_id", "company_id", "lpo_number", "invoice_number", "issued", "due",
+    "client_id", "company_id", "currency", "lpo_number", "invoice_number", "issued", "due",
     "valid_until", "status", "vat_percent", "notes", "subtotal", "vat", "total",
 )
 TWO_DP = Decimal("0.01")
@@ -363,6 +364,12 @@ def create_invoice():
     if not isinstance(company_id, int):
         return api_response(error="invalid_type", message="'company_id' must be an integer."), 400
 
+    currency = body.get("currency", "USD")
+    if not isinstance(currency, str) or currency not in ALLOWED_CURRENCIES:
+        return api_response(
+            error="invalid_type", message=f"'currency' must be one of {sorted(ALLOWED_CURRENCIES)}."
+        ), 400
+
     status = body.get("status", "Draft")
     if status not in _allowed_statuses(document_type):
         return api_response(
@@ -415,7 +422,7 @@ def create_invoice():
 
     invoice = Invoice(
         document_type=document_type,
-        client_id=client_id, company_id=company_id, lpo_number=lpo_number, invoice_number=invoice_number,
+        client_id=client_id, company_id=company_id, currency=currency, lpo_number=lpo_number, invoice_number=invoice_number,
         issued=issued, due=due, valid_until=valid_until, status=status,
         vat_percent=vat_percent, notes=notes,
         subtotal=subtotal, vat=total_vat, total=total,
@@ -497,6 +504,14 @@ def update_invoice(invoice_id: int):
             return api_response(error="fk_conflict", message=f"No company with id {body['company_id']}."), 409
         new_company_id = body["company_id"]
 
+    new_currency = invoice.currency
+    if "currency" in body:
+        if not isinstance(body["currency"], str) or body["currency"] not in ALLOWED_CURRENCIES:
+            return api_response(
+                error="invalid_type", message=f"'currency' must be one of {sorted(ALLOWED_CURRENCIES)}."
+            ), 400
+        new_currency = body["currency"]
+
     new_status = invoice.status
     if "status" in body:
         if body["status"] not in _allowed_statuses(invoice.document_type):
@@ -548,6 +563,7 @@ def update_invoice(invoice_id: int):
 
     invoice.client_id = new_client_id
     invoice.company_id = new_company_id
+    invoice.currency = new_currency
     invoice.status = new_status
     invoice.vat_percent = new_vat_percent
     invoice.issued = new_issued
@@ -659,6 +675,8 @@ def convert_to_invoice(invoice_id: int):
     new_invoice = Invoice(
         document_type="invoice",
         client_id=quotation.client_id,
+        company_id=quotation.company_id,
+        currency=quotation.currency or "USD",
         lpo_number=quotation.lpo_number,
         invoice_number=new_number,
         issued=today,

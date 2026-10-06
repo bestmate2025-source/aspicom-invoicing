@@ -343,6 +343,14 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
       <div class="section-title">Issuing company</div>
       <div class="field"><select id="f-company" required></select></div>
 
+      <div class="field">
+        <label>Currency</label>
+        <select id="f-currency">
+          <option value="USD">USD ($)</option>
+          <option value="AED">AED (&#1583;.&#1573;)</option>
+        </select>
+      </div>
+
       <div class="section-title">Client</div>
       <div class="field"><select id="f-client" required></select></div>
 
@@ -577,7 +585,8 @@ let editingPaymentInvoiceId = null;
 let itemCounter = 0;
 
 const $ = s => document.querySelector(s);
-const fmt = n => '$' + Number(n || 0).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+const fmt = (n, cur) => (cur === 'AED' ? 'AED ' : '$') + Number(n || 0).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+const modalCur = () => ($('#f-currency') ? $('#f-currency').value : 'USD') || 'USD';
 
 function apiInvToUi(inv) {
   return {
@@ -585,6 +594,7 @@ function apiInvToUi(inv) {
     documentType: inv.document_type || 'invoice',
     clientId: inv.client_id,
     companyId: parseInt(inv.company_id, 10) || 1,
+    currency: inv.currency || 'USD',
     lpoNumber: inv.lpo_number,
     invoiceNumber: inv.invoice_number,
     issued: inv.issued,
@@ -619,6 +629,7 @@ function uiInvToApi(ui) {
     document_type: ui.documentType || 'invoice',
     client_id: parseInt(ui.clientId),
     company_id: parseInt(ui.companyId, 10) || 1,
+    currency: ui.currency || 'USD',
     lpo_number: ui.lpoNumber || null,
     issued: ui.issued || null,
     due: ui.due || null,
@@ -693,7 +704,7 @@ function renderDashboard() {
   $('#dash-rows').innerHTML = rows.length ? rows.map(inv => {
     const st = displayStatus(inv);
     const { total } = invoiceTotals(inv);
-    return `<tr class="bar ${barClass(st)}"><td class="name">${clientName(inv.clientId)}</td><td>${inv.invoiceNumber || '—'}</td><td>${fmt(total)}</td><td>${inv.due || '—'}</td><td><span class="status-pill status-${st}">${st}</span></td></tr>`;
+    return `<tr class="bar ${barClass(st)}"><td class="name">${clientName(inv.clientId)}</td><td>${inv.invoiceNumber || '—'}</td><td>${fmt(total, inv.currency)}</td><td>${inv.due || '—'}</td><td><span class="status-pill status-${st}">${st}</span></td></tr>`;
   }).join('') : `<tr><td colspan="5" class="empty">No invoices yet — create your first one from the Invoices tab.</td></tr>`;
 }
 
@@ -705,7 +716,7 @@ function renderInvoices() {
   $('#inv-rows').innerHTML = rows.length ? rows.map(inv => {
     const st = displayStatus(inv);
     const { total } = invoiceTotals(inv);
-    return `<tr class="bar ${barClass(st)}" data-id="${inv.id}"><td class="name">${clientName(inv.clientId)}</td><td>${inv.invoiceNumber || '—'}</td><td>${inv.issued || '—'}</td><td>${inv.due || '—'}</td><td>${fmt(total)}</td><td>${fmt(inv.amount_paid)}</td><td>${fmt(inv.balance)}</td><td><span class="status-pill status-${st}">${st}</span></td></tr>`;
+    return `<tr class="bar ${barClass(st)}" data-id="${inv.id}"><td class="name">${clientName(inv.clientId)}</td><td>${inv.invoiceNumber || '—'}</td><td>${inv.issued || '—'}</td><td>${inv.due || '—'}</td><td>${fmt(total, inv.currency)}</td><td>${fmt(inv.amount_paid, inv.currency)}</td><td>${fmt(inv.balance, inv.currency)}</td><td><span class="status-pill status-${st}">${st}</span></td></tr>`;
   }).join('') : `<tr><td colspan="8" class="empty">Nothing here. Try a different filter or add an invoice.</td></tr>`;
   document.querySelectorAll('#inv-rows tr[data-id]').forEach(tr => tr.addEventListener('click', () => openInvoiceModal(tr.dataset.id)));
 }
@@ -722,7 +733,7 @@ function renderQuotations() {
                     : st === 'Rejected' ? 'status-Overdue'
                     : st === 'Sent' ? 'status-Sent'
                     : 'status-Draft';
-    return `<tr data-id="${inv.id}"><td class="name">${clientName(inv.clientId)}</td><td>${inv.invoiceNumber || '—'}</td><td>${inv.issued || '—'}</td><td>${inv.validUntil || '—'}</td><td>${fmt(inv.total)}</td><td><span class="status-pill ${pillClass}">${st}</span></td></tr>`;
+    return `<tr data-id="${inv.id}"><td class="name">${clientName(inv.clientId)}</td><td>${inv.invoiceNumber || '—'}</td><td>${inv.issued || '—'}</td><td>${inv.validUntil || '—'}</td><td>${fmt(inv.total, inv.currency)}</td><td><span class="status-pill ${pillClass}">${st}</span></td></tr>`;
   }).join('') : `<tr><td colspan="6" class="empty">No quotations yet — create your first one.</td></tr>`;
   document.querySelectorAll('#quot-rows tr[data-id]').forEach(tr => tr.addEventListener('click', () => openQuotationModal(tr.dataset.id)));
 }
@@ -751,6 +762,8 @@ function populateCompanySelect(inv) {
   $('#f-company').innerHTML = list.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
   $('#f-company').value = String(want);
   $('#f-company').disabled = !!inv;
+  // currency selector is set up here too, so both modals get it without extra wiring
+  if ($('#f-currency')) $('#f-currency').value = (inv && inv.currency) || 'USD';
 }
 
 function renderInventory() {
@@ -830,9 +843,9 @@ function itemRow(it) {
     <input class="it-foc" type="text" inputmode="numeric" placeholder="0" value="${it.focQty || ''}">
     <input class="it-disc" type="text" inputmode="decimal" placeholder="0" value="${it.discountPercent || ''}">
     <input class="it-vat" type="text" inputmode="decimal" placeholder="0" value="${it.vatPercent || ''}">
-    <span class="amt">${fmt(lineAmt)}</span>
-    <span class="amt">${fmt(vatAmt)}</span>
-    <span class="amt">${fmt(lineTotal)}</span>
+    <span class="amt">${fmt(lineAmt, modalCur())}</span>
+    <span class="amt">${fmt(vatAmt, modalCur())}</span>
+    <span class="amt">${fmt(lineTotal, modalCur())}</span>
     <button type="button" class="rm">×</button>
   </div>`;
 }
@@ -862,9 +875,9 @@ function recalcModalTotals() {
     const lineTotal = taxable + vatAmt;
 
     const spans = row.querySelectorAll('.amt');
-    spans[0].textContent = fmt(lineAmt);
-    spans[1].textContent = fmt(vatAmt);
-    spans[2].textContent = fmt(lineTotal);
+    spans[0].textContent = fmt(lineAmt, modalCur());
+    spans[1].textContent = fmt(vatAmt, modalCur());
+    spans[2].textContent = fmt(lineTotal, modalCur());
   });
 
   let subtotal = 0, totalDiscount = 0, totalVat = 0;
@@ -880,12 +893,14 @@ function recalcModalTotals() {
 
   const grandTotal = subtotal - totalDiscount + totalVat;
 
-  $('#calc-subtotal').textContent = fmt(subtotal);
+  $('#calc-subtotal').textContent = fmt(subtotal, modalCur());
   const discEl = $('#calc-discount');
-  if (discEl) discEl.textContent = fmt(totalDiscount);
-  $('#calc-vat').textContent = fmt(totalVat);
-  $('#calc-total').textContent = fmt(grandTotal);
+  if (discEl) discEl.textContent = fmt(totalDiscount, modalCur());
+  $('#calc-vat').textContent = fmt(totalVat, modalCur());
+  $('#calc-total').textContent = fmt(grandTotal, modalCur());
 }
+
+if ($('#f-currency')) $('#f-currency').addEventListener('change', recalcModalTotals);
 
 $('#items-wrap').addEventListener('input', (e) => {
   if (e.target.classList.contains('it-name')) {
@@ -917,15 +932,15 @@ async function loadPaymentsForInvoice(invoiceId) {
     const inv = await api(`/api/invoices/${invoiceId}`);
     const payments = await api(`/api/invoices/${invoiceId}/payments`);
 
-    $('#pay-total').textContent = fmt(parseFloat(inv.total) || 0);
-    $('#pay-paid').textContent = fmt(parseFloat(inv.amount_paid) || 0);
-    $('#pay-balance').textContent = fmt(parseFloat(inv.balance) || 0);
+    $('#pay-total').textContent = fmt(parseFloat(inv.total) || 0, inv.currency);
+    $('#pay-paid').textContent = fmt(parseFloat(inv.amount_paid) || 0, inv.currency);
+    $('#pay-balance').textContent = fmt(parseFloat(inv.balance) || 0, inv.currency);
 
     const rows = payments.map((p, i) => `
       <tr>
         <td style="border:none; padding:4px 8px;">${i + 1}</td>
         <td style="border:none; padding:4px 8px;">${p.paid_date || '—'}</td>
-        <td style="border:none; padding:4px 8px;">${fmt(parseFloat(p.amount) || 0)}</td>
+        <td style="border:none; padding:4px 8px;">${fmt(parseFloat(p.amount) || 0, inv.currency)}</td>
         <td style="border:none; padding:4px 8px;">${p.payment_method || '—'}</td>
         <td style="border:none; padding:4px 8px; text-align:right;"><button type="button" class="btn ghost sm delete-payment-btn" data-pid="${p.id}" style="color:var(--danger); border-color:var(--danger); padding:2px 6px;">×</button></td>
       </tr>
@@ -1140,6 +1155,7 @@ $('#invoice-form').addEventListener('submit', async (e) => {
     documentType: window._editingDocumentType || 'invoice',
     clientId: $('#f-client').value,
     companyId: parseInt($('#f-company').value, 10) || 1,
+    currency: $('#f-currency').value || 'USD',
     lpoNumber: $('#f-lpo').value,
     issued: $('#f-issued').value,
     due: $('#f-due').value,
@@ -1202,6 +1218,7 @@ function openPrint() {
   const inv = invoices.find(i => i.id === editingInvoiceId);
   const client = clients.find(c => c.id === inv.clientId) || {};
   const invCompany = companies.find(c => c.id === inv.companyId) || companies[0] || company;
+  const invCur = inv.currency || 'USD';
   const items = inv.items || [];
   const { subtotal, vat, total } = invoiceTotals(inv);
    const rows = items.map((it, i) => {
@@ -1214,14 +1231,14 @@ function openPrint() {
       <td>${i + 1}</td>
       <td>${it.name || ''}</td>
       <td>${it.brand || ''}</td>
-      <td class="num">${fmt(it.unitPrice)}</td>
+      <td class="num">${fmt(it.unitPrice, invCur)}</td>
       <td class="num">${it.qty || 0}</td>
       <td class="num">${it.focQty || 0}</td>
       <td class="num">${it.discountPercent || 0}%</td>
       <td class="num">${it.vatPercent || 0}%</td>
-      <td class="num">${fmt(lineAmt)}</td>
-      <td class="num">${fmt(vatAmt)}</td>
-      <td class="num">${fmt(lineTotal)}</td>
+      <td class="num">${fmt(lineAmt, invCur)}</td>
+      <td class="num">${fmt(vatAmt, invCur)}</td>
+      <td class="num">${fmt(lineTotal, invCur)}</td>
     </tr>`;
   }).join('');
   const logoUrl = invCompany.logo_path ? `${API_URL}/${invCompany.logo_path}` : null;
@@ -1239,10 +1256,10 @@ function openPrint() {
         <table class="sheet-table"><thead><tr><th>S#</th><th>Product</th><th>Brand</th><th>Unit</th><th>Qty</th><th>FOC</th><th>Disc%</th><th>VAT%</th><th>Amount</th><th>VAT</th><th>Total</th></tr></thead>
       <tbody>${rows}</tbody>
       <tfoot>
-        <tr class="sheet-totals"><td colspan="10" style="text-align:right;">Subtotal</td><td class="num">${fmt(subtotal)}</td></tr>
-        <tr class="sheet-totals"><td colspan="10" style="text-align:right;">Total Discount</td><td class="num">${fmt(items.reduce((s, it) => { const a = (it.unitPrice || 0) * (it.qty || 0); return s + a * (it.discountPercent || 0) / 100; }, 0))}</td></tr>
-        <tr class="sheet-totals"><td colspan="10" style="text-align:right;">Total VAT</td><td class="num">${fmt(vat)}</td></tr>
-        <tr class="sheet-totals"><td colspan="10" style="text-align:right;">Grand Total</td><td class="num">${fmt(total)}</td></tr>
+        <tr class="sheet-totals"><td colspan="10" style="text-align:right;">Subtotal</td><td class="num">${fmt(subtotal, invCur)}</td></tr>
+        <tr class="sheet-totals"><td colspan="10" style="text-align:right;">Total Discount</td><td class="num">${fmt(items.reduce((s, it) => { const a = (it.unitPrice || 0) * (it.qty || 0); return s + a * (it.discountPercent || 0) / 100; }, 0), invCur)}</td></tr>
+        <tr class="sheet-totals"><td colspan="10" style="text-align:right;">Total VAT</td><td class="num">${fmt(vat, invCur)}</td></tr>
+        <tr class="sheet-totals"><td colspan="10" style="text-align:right;">Grand Total</td><td class="num">${fmt(total, invCur)}</td></tr>
       </tfoot>
     </table>
     <div class="sheet-sign">
