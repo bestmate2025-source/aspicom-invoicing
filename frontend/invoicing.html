@@ -1411,6 +1411,7 @@ $('#download-pdf-btn').addEventListener('click', () => {
 });
 
 function openInvItemModal(id) {
+  id = id ? parseInt(id, 10) : null;
   editingInvItemId = id || null;
   const it = id ? inventory.find(i => i.id === id) : null;
   $('#inv-item-title').textContent = it ? 'Edit product' : 'Add product';
