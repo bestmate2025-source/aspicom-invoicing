@@ -153,6 +153,7 @@ def client_statement(client_id):
                 "invoice_id": r.id,
                 "invoice_number": r.invoice_number or "",
                 "debit": D(r.total), "credit": ZERO,
+                "vat": D(r.vat),
             })
         for r in pay_rows:
             inv = inv_by_id.get(r.invoice_id)
@@ -167,6 +168,7 @@ def client_statement(client_id):
                 "invoice_id": r.invoice_id,
                 "invoice_number": inv.invoice_number or "",
                 "debit": ZERO, "credit": D(r.amount),
+                "vat": ZERO,
             })
         events.sort(key=lambda e: (e["date"], e["order"], e["id"]))
 
@@ -181,6 +183,7 @@ def client_statement(client_id):
         balance = opening
         total_debit = ZERO
         total_credit = ZERO
+        total_vat = ZERO
         transactions = []
         for e in events:
             if e["date"] < d_from or e["date"] > d_to:
@@ -188,6 +191,8 @@ def client_statement(client_id):
             balance = D(balance + e["debit"] - e["credit"])
             total_debit += e["debit"]
             total_credit += e["credit"]
+            if e.get("vat"):
+                total_vat += e["vat"]
             transactions.append({
                 "date": e["date"].isoformat(),
                 "type": e["type"],
@@ -197,6 +202,7 @@ def client_statement(client_id):
                 "debit": money(e["debit"]),
                 "credit": money(e["credit"]),
                 "balance": money(balance),
+                "vat": money(e.get("vat", ZERO)),
             })
         closing = D(balance)
 
@@ -249,6 +255,7 @@ def client_statement(client_id):
                 "invoiced": money(total_debit),
                 "paid": money(total_credit),
                 "outstanding": money(closing),
+                "total_vat": money(total_vat),
             },
             "aging": aging,
             "transactions": transactions,

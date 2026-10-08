@@ -174,6 +174,7 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
     <button class="nav-item" data-view="invoices">Invoices</button>
     <button class="nav-item" data-view="quotations">Quotations</button>
     <button class="nav-item" data-view="statements">Statements</button>
+    <button class="nav-item" data-view="vat-report">VAT Report</button>
     <button class="nav-item" data-view="clients">Clients</button>
     <button class="nav-item" data-view="inventory">Inventory</button>
     <button class="nav-item" data-view="supplier">Supplier Bills</button>
@@ -247,6 +248,13 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
       <tbody id="quot-rows"></tbody>
     </table>
   </div>
+  <div id="view-vat-report" style="display:none;">
+    <h1>VAT Report</h1>
+    <p class="lede">Company-wide VAT summary across all invoices.</p>
+    <div class="toolbar" id="vat-filters" style="flex-wrap:wrap; gap:8px;"></div>
+    <div id="vat-body"></div>
+  </div>
+
   <div id="view-clients" style="display:none;">
     <h1>Clients</h1>
     <p class="lede">Who you bill â€” name, address and TRN feed straight onto the invoice.</p>
@@ -911,7 +919,7 @@ document.querySelectorAll('.nav-item').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-        ['dashboard', 'invoices', 'quotations', 'statements', 'clients', 'inventory', 'supplier', 'company'].forEach(v => {
+        ['dashboard', 'invoices', 'quotations', 'statements', 'vat-report', 'clients', 'inventory', 'supplier', 'company'].forEach(v => {
       $('#view-' + v).style.display = (v === btn.dataset.view) ? 'block' : 'none';
     });
   });
@@ -1645,6 +1653,159 @@ document.querySelectorAll('.nav-item').forEach(btn => {
   }
 });
 
+let vatReportData = null;
+let vatRange = 'month';
+let vatFrom = '';
+let vatTo = '';
+let vatCompanyId = '';
+let vatClientId = '';
+let vatCurrency = '';
+
+function vatApplyRange(key) {
+  vatRange = key;
+  if (key !== 'custom') {
+    const r = stmtDateRange(key);
+    vatFrom = r.from;
+    vatTo = r.to;
+  }
+}
+
+function renderVatFilters() {
+  const box = document.getElementById('vat-filters');
+  if (!box) return;
+  const inputStyle = 'padding:5px 8px; border:1px solid var(--line); border-radius:5px; background:var(--bg); color:var(--ink); font-family:inherit;';
+  const quick = [['month', 'This Month'], ['30d', 'Last 30 Days'], ['quarter', 'This Quarter'], ['year', 'This Year'], ['all', 'All Time']]
+    .map(([key, label]) => `<button class="tab ${vatRange === key ? 'active' : ''}" data-range="${key}">${label}</button>`).join('');
+  const sortedClients = [...clients].sort((a, b) => (a.name || '').toLowerCase().localeCompare((b.name || '').toLowerCase()));
+  const companyOpts = '<option value="">All Companies</option>' + companies.map(c => `<option value="${c.id}" ${String(c.id) === String(vatCompanyId) ? 'selected' : ''}>${c.name}</option>`).join('');
+  const currencyOpts = [['', 'All Currencies'], ['USD', 'USD'], ['AED', 'AED']].map(([v, label]) => `<option value="${v}" ${v === vatCurrency ? 'selected' : ''}>${label}</option>`).join('');
+  const clientOpts = '<option value="">All Clients</option>' + sortedClients.map(c => `<option value="${c.id}" ${String(c.id) === String(vatClientId) ? 'selected' : ''}>${c.name}</option>`).join('');
+  box.innerHTML = `
+    <label style="font-size:13px;">From <input type="date" id="vat-from" value="${vatFrom}" style="${inputStyle}"></label>
+    <label style="font-size:13px;">To <input type="date" id="vat-to" value="${vatTo}" style="${inputStyle}"></label>
+    <div class="tabs" style="margin-left:8px;">${quick}</div>
+    <select id="vat-company" style="${inputStyle}">${companyOpts}</select>
+    <select id="vat-currency" style="${inputStyle}">${currencyOpts}</select>
+    <select id="vat-client" style="${inputStyle}">${clientOpts}</select>
+  `;
+
+  box.querySelectorAll('.tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      vatApplyRange(btn.dataset.range);
+      renderVatFilters();
+      loadVatReport();
+    });
+  });
+  const onDateChange = () => {
+    vatFrom = document.getElementById('vat-from').value;
+    vatTo = document.getElementById('vat-to').value;
+    vatRange = 'custom';
+    box.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    loadVatReport();
+  };
+  document.getElementById('vat-from').addEventListener('change', onDateChange);
+  document.getElementById('vat-to').addEventListener('change', onDateChange);
+  document.getElementById('vat-company').addEventListener('change', e => { vatCompanyId = e.target.value; loadVatReport(); });
+  document.getElementById('vat-currency').addEventListener('change', e => { vatCurrency = e.target.value; loadVatReport(); });
+  document.getElementById('vat-client').addEventListener('change', e => { vatClientId = e.target.value; loadVatReport(); });
+}
+
+async function loadVatReport() {
+  const params = new URLSearchParams();
+  if (vatFrom) params.set('from', vatFrom);
+  if (vatTo) params.set('to', vatTo);
+  if (vatCompanyId) params.set('company_id', vatCompanyId);
+  if (vatClientId) params.set('client_id', vatClientId);
+  if (vatCurrency) params.set('currency', vatCurrency);
+  try {
+    vatReportData = await api('/api/vat-report?' + params.toString());
+    renderVatReport();
+  } catch (err) {
+    toastErr('VAT report failed: ' + err.message);
+  }
+}
+
+function vatSummaryTable(firstHead, rows) {
+  const th = 'style="text-align:right;"';
+  return `<table style="margin-bottom:24px;">
+    <thead><tr><th>${firstHead}</th><th ${th}>Invoices</th><th ${th}>Subtotal</th><th ${th}>Discount</th><th ${th}>Taxable</th><th ${th}>VAT</th><th ${th}>Total</th></tr></thead>
+    <tbody>${rows.map(r => `<tr>
+      <td>${r.label}</td>
+      <td ${th}>${r.invoice_count}</td>
+      <td ${th}>${fmt(r.subtotal, r.cur)}</td>
+      <td ${th}>${fmt(r.discount, r.cur)}</td>
+      <td ${th}>${fmt(r.taxable, r.cur)}</td>
+      <td ${th}>${fmt(r.vat, r.cur)}</td>
+      <td ${th}>${fmt(r.total, r.cur)}</td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+function renderVatReport() {
+  const body = document.getElementById('vat-body');
+  const d = vatReportData;
+  if (!body || !d) return;
+  const byCur = d.by_currency || [];
+  const mixed = byCur.length > 1;
+  const single = byCur.length === 1 ? byCur[0].currency : (vatCurrency || 'USD');
+  const t = d.totals || {};
+  const th = 'style="text-align:right;"';
+
+  const cardValue = key => mixed
+    ? byCur.map(c => `<div style="font-size:20px; line-height:1.35;">${fmt(c[key], c.currency)}</div>`).join('')
+    : fmt(t[key], single);
+
+  const note = mixed
+    ? '<div style="margin-bottom:16px; padding:8px 12px; border:1px solid var(--amber); border-radius:6px; color:var(--amber); font-size:13px;">Mixed currencies &mdash; see By Currency breakdown</div>'
+    : '';
+
+  const cards = `<div class="stats">
+    <div class="stat" style="border-color:var(--pine); flex:1.4;">
+      <div class="stat-label">Total VAT</div>
+      <div class="stat-value pine" style="${mixed ? '' : 'font-size:38px;'}">${cardValue('vat')}</div>
+    </div>
+    <div class="stat"><div class="stat-label">Taxable value</div><div class="stat-value">${cardValue('taxable')}</div></div>
+    <div class="stat"><div class="stat-label">Invoiced (total)</div><div class="stat-value">${cardValue('total')}</div></div>
+    <div class="stat"><div class="stat-label">Invoices</div><div class="stat-value">${t.invoice_count || 0}</div></div>
+  </div>`;
+
+  const companyRows = (d.by_company || []).map(r => ({ ...r, label: r.company_name, cur: single }));
+  const currencyRows = byCur.map(r => ({ ...r, label: r.currency, cur: r.currency }));
+  const byCompanyHtml = (!mixed && companyRows.length > 1)
+    ? '<div class="section-title">By Company</div>' + vatSummaryTable('Company', companyRows) : '';
+  const byCurrencyHtml = mixed
+    ? '<div class="section-title">By Currency</div>' + vatSummaryTable('Currency', currencyRows) : '';
+
+  const invs = d.invoices || [];
+  let tableHtml = '<div class="empty">No invoices in this period.</div>';
+  if (invs.length) {
+    const rowsHtml = invs.map(i => `<tr>
+      <td>${i.date || ''}</td><td>${i.invoice_number}</td><td>${i.client_name || ''}</td><td>${i.company_name || ''}</td><td>${i.currency}</td>
+      <td ${th}>${fmt(i.subtotal, i.currency)}</td><td ${th}>${fmt(i.discount, i.currency)}</td><td ${th}>${fmt(i.taxable, i.currency)}</td><td ${th}>${fmt(i.vat, i.currency)}</td><td ${th}>${fmt(i.total, i.currency)}</td>
+    </tr>`).join('');
+    const totalRows = byCur.map(c => `<tr style="font-weight:700; background:var(--grey-soft);">
+      <td colspan="5">TOTAL${mixed ? ' (' + c.currency + ')' : ''}</td>
+      <td ${th}>${fmt(c.subtotal, c.currency)}</td><td ${th}>${fmt(c.discount, c.currency)}</td><td ${th}>${fmt(c.taxable, c.currency)}</td><td ${th}>${fmt(c.vat, c.currency)}</td><td ${th}>${fmt(c.total, c.currency)}</td>
+    </tr>`).join('');
+    tableHtml = `<div style="overflow-x:auto;"><table>
+      <thead><tr><th>Date</th><th>Invoice #</th><th>Client</th><th>Company</th><th>Currency</th><th ${th}>Subtotal</th><th ${th}>Discount</th><th ${th}>Taxable</th><th ${th}>VAT</th><th ${th}>Total</th></tr></thead>
+      <tbody>${rowsHtml}${totalRows}</tbody>
+    </table></div>`;
+  }
+
+  body.innerHTML = note + cards + byCompanyHtml + byCurrencyHtml + '<div class="section-title">Invoices</div>' + tableHtml;
+}
+
+document.querySelectorAll('.nav-item').forEach(btn => {
+  if (btn.dataset.view === 'vat-report') {
+    btn.addEventListener('click', () => {
+      vatApplyRange(vatRange);
+      renderVatFilters();
+      loadVatReport();
+    });
+  }
+});
+
 loadCompanies().then(renderCompanyList).catch(() => {});
 
 let pendingImportFile = null;
@@ -1908,6 +2069,7 @@ function renderStatement(data) {
       <div class="stat"><div class="stat-label">Invoiced</div><div class="stat-value pine">${fmt(t.invoiced)}</div></div>
       <div class="stat"><div class="stat-label">Paid</div><div class="stat-value pine">${fmt(t.paid)}</div></div>
       <div class="stat"><div class="stat-label">Closing</div><div class="stat-value amber">${fmt(data.closing_balance)}</div></div>
+      <div class="stat"><div class="stat-label">VAT</div><div class="stat-value pine">${fmt(t.total_vat)}</div></div>
     </div>
   `;
 
@@ -1939,9 +2101,10 @@ function renderStatement(data) {
       <td>${tx.reference || '—'}</td>
       <td style="text-align:right;">${tx.type === 'invoice' ? fmt(tx.debit) : '—'}</td>
       <td style="text-align:right;">${tx.type === 'payment' ? fmt(tx.credit) : '—'}</td>
+      <td style="text-align:right;">${tx.type === 'invoice' ? fmt(tx.vat) : '—'}</td>
       <td style="text-align:right; font-weight:600;">${fmt(tx.balance)}</td>
     </tr>
-  `).join('') : `<tr><td colspan="6" class="empty">No transactions in this period.</td></tr>`;
+  `).join('') : `<tr><td colspan="7" class="empty">No transactions in this period.</td></tr>`;
 
   const tableHtml = `
     <div class="section-title">Transactions</div>
@@ -1951,6 +2114,7 @@ function renderStatement(data) {
           <th>Date</th><th>Type</th><th>Reference</th>
           <th style="text-align:right;">Debit</th>
           <th style="text-align:right;">Credit</th>
+          <th style="text-align:right;">VAT</th>
           <th style="text-align:right;">Balance</th>
         </tr>
       </thead>

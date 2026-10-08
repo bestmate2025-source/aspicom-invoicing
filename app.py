@@ -23,6 +23,7 @@ from routes.inventory import inventory_bp
 from routes.invoices import invoices_bp, payments_bp
 from routes.pdf import pdf_bp
 from routes.statements import statements_bp
+from routes.vat_report import vat_report_bp
 
 load_dotenv()
 
@@ -72,6 +73,7 @@ def create_app() -> Flask:
     app.register_blueprint(companies_bp, url_prefix="/api/companies")  # list/create/edit companies + per-company logo/stamp
     app.register_blueprint(pdf_bp, url_prefix="/api")  # /api/parse-pdf, /api/import-pdf
     app.register_blueprint(statements_bp, url_prefix="/api")  # GET /api/clients/<id>/statement — see routes/statements.py
+    app.register_blueprint(vat_report_bp, url_prefix="/api")  # GET /api/vat-report — see routes/vat_report.py
 
     @app.route("/api/health")
     def health():
