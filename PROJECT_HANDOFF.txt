@@ -1,0 +1,974 @@
+=========================================================
+PROJECT HANDOFF - ASPICOM LLC INVOICING SYSTEM
+=========================================================
+
+You are joining a LIVE, PRODUCTION-DEPLOYED full-stack invoicing
+project mid-development. Read this entire brief carefully before
+doing anything.
+
+-------------------------
+1. WHO I AM
+-------------------------
+
+Name: Farhan
+Business: Aspicom LLC (partner: Usman)
+Location: UAE (pharmaceutical/wholesale)
+Role: Non-professional developer learning as I go
+
+MY WORKING STYLE:
+- Explain steps simply, no jargon without definition
+- Give me complete commands to copy-paste
+- Tell me exactly where to paste code (file, line, context)
+- Full file replacements are safer than multi-part patches
+- Warn me before destructive operations
+- Build in stages, pause between, let me test
+- One command at a time during debugging
+- Show me outputs before moving on
+- When a patch uses find-string/replace-string, use SINGLE-LINE
+  or TWO-LINE anchors only (multi-line heredoc patches have failed
+  before)
+
+-------------------------
+2. CURRENT SYSTEM STATE
+-------------------------
+
+PRODUCTION URL (Users access this):
+  https://bestmate2025-source.github.io/aspicom-invoicing/
+
+BACKEND API:
+  https://aspicom-invoicing-production.up.railway.app/
+
+GITHUB REPO:
+  https://github.com/bestmate2025-source/aspicom-invoicing
+
+HOSTING:
+  - Backend: Railway.app (Flask + MySQL, $5/mo trial)
+  - Frontend: GitHub Pages (free)
+  - Database: Railway MySQL
+
+NOTE (2026-10-09):
+  Production is running all features up to and including:
+    - Low-stock bell + chart
+    - VAT Report
+    - Multi-company
+    - Multi-currency (USD + AED)
+  The auth backend (login, users table) exists LOCALLY only -
+  NOT yet deployed to Railway.
+
+LOCAL DEV ENVIRONMENT:
+  - Path: C:\Users\farha\OneDrive\Pictures\invoicing_project
+  - Python 3.10 in venv
+  - Local MySQL database: aspicom_invoicing
+    (user: root, password: infra142)
+  - Two servers: Flask on :5000, http.server on :8000
+  - Browser: Chrome. Extensions (Copilot, ChatGPT) can interfere
+    on localhost - use Incognito when debugging odd UI issues.
+
+-------------------------
+3. TECH STACK
+-------------------------
+
+BACKEND:
+  Python 3.10 + Flask
+  SQLAlchemy ORM (used, not raw SQL)
+  PyMySQL driver
+  pdfplumber (PDF parsing)
+  reportlab (future PDF generation)
+  Flask-CORS (wide open for dev)
+  python-dotenv
+  gunicorn (production WSGI)
+  PyJWT 2.15.1 (auth tokens)
+  werkzeug.security (password hashing)
+  pytest (test suite)
+
+FRONTEND:
+  Single HTML file: frontend/invoicing.html (~2000 lines)
+  Vanilla JavaScript (no framework)
+  Fraunces + Inter fonts from Google Fonts
+  Pine green (#0B5D52) + amber (#B8722E) palette
+  Dark mode + responsive
+
+DATABASE:
+  MySQL 8
+  10 tables: clients, invoices, invoice_items, invoice_payments,
+  inventory, company, parsed_invoices, import_log, invoice_audit,
+  users
+  Money stored as DECIMAL(12,2), never float
+  Uses Decimal() via str() for exact precision
+
+-------------------------
+4. PROJECT STRUCTURE
+-------------------------
+
+invoicing_project/
+|-- app.py                    # Flask app factory + blueprint registration
+|-- extensions.py             # SQLAlchemy db instance
+|-- models.py                 # All ORM models
+|-- config.yaml               # Settings
+|-- requirements.txt
+|-- Procfile                  # Railway: gunicorn start command
+|-- .env                      # Local DB credentials (not in git)
+|-- .gitignore
+|-- schema.sql                # Complete DB schema
+|-- db/migrations/
+|-- routes/
+|   |-- auth.py               # Login/me/logout (Phase 2 - LOCAL ONLY)
+|   |-- clients.py            # Client CRUD
+|   |-- companies.py          # Multi-company routes
+|   |-- company.py            # Old single-company routes (kept for
+|   |                         #   backward compat - used by /api/company)
+|   |-- inventory.py          # Product CRUD
+|   |-- invoices.py           # Invoice + quotation CRUD + payments
+|   |-- pdf.py                # PDF parse + import
+|   |-- statements.py         # Client account statement
+|   |-- vat_report.py         # VAT report (deployed)
+|-- parsers/
+|   |-- pdf_parser.py
+|-- utils/
+|   |-- auth.py               # JWT helpers + require_auth/require_admin
+|   |-- responses.py          # api_response() envelope
+|   |-- logger.py
+|-- frontend/
+|   |-- invoicing.html        # Dev version (API_URL = localhost)
+|-- docs/
+|   |-- index.html            # Production version (API_URL = Railway)
+|-- tests/
+|-- uploads/                  # Stamp + logo images
+
+-------------------------
+5. API ENDPOINTS (ALL WORKING)
+-------------------------
+
+Auth (Phase 2 - LOCAL ONLY):
+  POST   /api/auth/login                { username, password } -> token
+  GET    /api/auth/me                   needs Bearer token
+  POST   /api/auth/logout               no-op
+
+Clients:
+  GET    /api/clients
+  POST   /api/clients
+  GET    /api/clients/<id>
+  PUT    /api/clients/<id>
+  DELETE /api/clients/<id>
+
+Inventory:
+  GET    /api/inventory
+  POST   /api/inventory
+  PUT    /api/inventory/<id>
+  DELETE /api/inventory/<id>
+
+Companies (multi-company support):
+  GET    /api/companies
+  GET    /api/companies/<id>
+  POST   /api/companies
+  PUT    /api/companies/<id>
+  POST   /api/companies/<id>/logo
+  POST   /api/companies/<id>/stamp
+
+Company (legacy single-company):
+  GET    /api/company
+  PUT    /api/company
+  POST   /api/company/logo
+  POST   /api/company/stamp
+
+Invoices + Quotations (same table, document_type field):
+  GET    /api/invoices                  (?type=invoice|quotation)
+  POST   /api/invoices                  (requires document_type)
+  GET    /api/invoices/<id>
+  PUT    /api/invoices/<id>
+  DELETE /api/invoices/<id>
+  GET    /api/invoices/<id>/pdf         (returns 501 - placeholder)
+  POST   /api/invoices/<id>/convert-to-invoice
+
+Payments (invoices only):
+  GET    /api/invoices/<id>/payments
+  POST   /api/invoices/<id>/payments
+  DELETE /api/payments/<id>
+
+Statements:
+  GET    /api/clients/<id>/statement?from=YYYY-MM-DD&to=YYYY-MM-DD
+
+VAT Report:
+  GET    /api/vat-report?from=&to=&company_id=&client_id=&currency=
+
+Supplier PDFs:
+  POST   /api/parse-pdf
+  POST   /api/import-pdf
+  GET    /api/parsed-invoices
+  GET    /api/parsed-invoices/<id>
+  GET    /api/import-log
+
+Health:
+  GET    /api/health
+
+Static:
+  GET    /uploads/<filename>
+
+-------------------------
+6. STANDARD RESPONSE ENVELOPE
+-------------------------
+
+EVERY endpoint returns exactly:
+{
+  "data": <payload or null>,
+  "error": "error_code" or null,
+  "message": "human-readable message" or null
+}
+
+Frontend: check `error` first, then use `data`.
+Status codes: 200, 201, 400, 401, 403, 404, 409, 500, 501.
+
+-------------------------
+7. BUSINESS LOGIC
+-------------------------
+
+MONEY:
+  Decimal(str(value)) everywhere, quantize to 2 DP, ROUND_HALF_UP
+  Return as strings in JSON: "1200.00"
+
+PER-LINE CALCULATIONS (server-side, never trust client):
+  amount          = unit_price x qty
+  discount_amount = amount x discount_percent / 100
+  taxable         = amount - discount_amount
+  vat_amount      = taxable x vat_percent / 100
+
+INVOICE TOTALS (server-side):
+  subtotal       = sum(amount)
+  total_discount = sum(discount_amount)
+  total_vat      = sum(vat_amount)
+  total          = subtotal - total_discount + total_vat
+
+FOC (Free Of Charge):
+  foc_qty shown on print, does NOT affect amount/discount/VAT
+  Does NOT decrement inventory
+
+AUTO-NUMBERING (server-side, daily reset):
+  Invoices:   INV-YYYY-MM-DD:NNNN
+  Quotations: QTN-YYYY-MM-DD:NNNN
+
+DOCUMENT TYPES:
+  invoice   - has payments, decrements inventory, statuses:
+              Draft/Sent/Paid/Overdue
+  quotation - no payments, no inventory, statuses:
+              Draft/Sent/Accepted/Rejected
+
+MULTI-COMPANY:
+  Each invoice has company_id (default 1 = Aspicom LLC)
+  Company dropdown in the invoice form
+  Dropdown is LOCKED after invoice is created
+  Print uses the INVOICE'S company, not the currently-selected one
+  Each company has its own logo + stamp uploaded via:
+    POST /api/companies/<id>/logo
+    POST /api/companies/<id>/stamp
+  Files saved as: uploads/company-<id>-logo.<ext>
+  Never delete companies (they have logo/stamp/history)
+
+MULTI-CURRENCY:
+  Each invoice has currency (USD or AED, default USD)
+  Currency dropdown in the invoice form (NOT locked - editable)
+  Print uses the invoice's currency symbol
+  Statements/VAT Report keep their own logic (see below)
+
+INVENTORY:
+  Decremented on invoice creation only
+  Case-insensitive product name matching
+  Missing product = skip silently
+  Balance clamped at 0 (never negative)
+
+LOW-STOCK ALERT:
+  Definition: inventory.balance < 20 (fixed threshold)
+  Bell icon top-right of every page shows count
+  Bell click -> dropdown lists low-stock products
+  Dashboard shows a bar chart of low-stock items
+  Bars scaled to max 20, rotating color per bar
+  Par level shown as dashed line on each bar
+
+AUDIT TRAIL (invoice_audit):
+  One row per changed field on PUT
+  action: create/update/delete/status_change
+  old_value, new_value stored as strings
+
+PAYMENTS:
+  invoice.amount_paid is running total
+  balance = total - amount_paid
+  Auto-flips status to 'Paid' when balance hits 0
+  Overpayment rejected with 409
+
+CLIENT STATEMENTS (/api/clients/<id>/statement):
+  Shows all invoices + payments for one client
+  Opening balance = sum of transactions before `from` date
+  Closing balance = opening + invoiced - paid (within range)
+  Aging: 5 buckets (Current / 1-30 / 31-60 / 61-90 / 90+)
+    based on `due` date (falls back to `issued`)
+  VAT card shows total VAT for that client's invoices
+  Transactions table has a VAT column
+  Only Sent/Paid/Overdue invoices count (Drafts excluded)
+
+VAT REPORT (/api/vat-report):
+  Company-wide VAT summary across ALL invoices
+  Filters: from/to, company_id, client_id, currency
+  Only document_type='invoice' and status IN (Sent, Paid, Overdue)
+  Returns totals, by_company, by_currency, invoices list
+  Each invoice shows: subtotal, discount, taxable, vat, total
+  Where:
+    subtotal = invoices.subtotal (before discount)
+    discount = subtotal + vat - total (derived)
+    taxable  = total - vat (VAT base)
+    vat      = invoices.vat
+    total    = invoices.total
+  Currencies NOT converted - by_currency splits totals
+
+AUTHENTICATION:
+  Currently AUTH_ENABLED=false (dev mode - no login required)
+  See AUTHENTICATION STATUS section at the bottom for details
+
+-------------------------
+8. DATABASE SCHEMA
+-------------------------
+
+TABLE: clients
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
+  name VARCHAR(255) NOT NULL
+  address TEXT
+  po_box VARCHAR(50)
+  trn VARCHAR(50)
+  email VARCHAR(255)
+  created_at TIMESTAMP
+
+TABLE: invoices  (holds invoices + quotations)
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
+  company_id INT UNSIGNED NOT NULL DEFAULT 1 (FK -> company.id)
+  currency VARCHAR(3) NOT NULL DEFAULT 'USD'
+  document_type ENUM('invoice','quotation') NOT NULL DEFAULT 'invoice'
+  client_id INT UNSIGNED NOT NULL (FK -> clients.id, RESTRICT)
+  lpo_number VARCHAR(100)
+  invoice_number VARCHAR(100) NOT NULL UNIQUE
+  issued DATE
+  due DATE
+  valid_until DATE
+  status ENUM('Draft','Sent','Paid','Overdue','Accepted','Rejected')
+  vat_percent DECIMAL(5,2) DEFAULT 0
+  notes TEXT
+  subtotal DECIMAL(12,2) DEFAULT 0
+  vat DECIMAL(12,2) DEFAULT 0
+  total DECIMAL(12,2) DEFAULT 0
+  amount_paid DECIMAL(12,2) DEFAULT 0
+  created_at TIMESTAMP
+  INDEX idx_document_type, idx_invoices_company
+
+TABLE: invoice_items
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
+  invoice_id INT UNSIGNED NOT NULL (FK -> invoices.id, CASCADE)
+  product_name VARCHAR(255) NOT NULL
+  brand VARCHAR(255)
+  unit_price DECIMAL(12,2) NOT NULL
+  qty DECIMAL(10,2) NOT NULL
+  foc_qty DECIMAL(10,2) DEFAULT 0
+  discount_percent DECIMAL(5,2) DEFAULT 0
+  discount_amount DECIMAL(12,2) DEFAULT 0
+  amount DECIMAL(12,2) DEFAULT 0
+  vat_percent DECIMAL(5,2) DEFAULT 0
+  vat_amount DECIMAL(12,2) DEFAULT 0
+
+TABLE: invoice_payments
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
+  invoice_id INT UNSIGNED NOT NULL (FK -> invoices.id, CASCADE)
+  amount DECIMAL(12,2) NOT NULL
+  paid_date DATE NOT NULL
+  payment_method ENUM('cash','bank_transfer','card','cheque','other')
+  reference VARCHAR(255)
+  notes TEXT
+  created_at TIMESTAMP
+
+TABLE: inventory
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
+  product VARCHAR(255) NOT NULL UNIQUE
+  brand VARCHAR(255)
+  price DECIMAL(12,2) DEFAULT 0
+  vat_percent DECIMAL(5,2) DEFAULT 5
+  par_level DECIMAL(10,2) DEFAULT 0
+  balance DECIMAL(10,2) DEFAULT 0
+  updated_at TIMESTAMP
+
+TABLE: company  (multi-row now)
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
+  name VARCHAR(255)
+  address TEXT
+  po_box VARCHAR(50)
+  trn VARCHAR(50)
+  phone VARCHAR(50)
+  email VARCHAR(255)
+  website VARCHAR(255)
+  signee VARCHAR(255)
+  logo_path VARCHAR(500)
+  stamp_path VARCHAR(500)
+  (Existing row: id=1, name='Aspicom LLC', po_box='515000',
+   trn='100441082300003')
+
+TABLE: parsed_invoices  (supplier PDFs)
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
+  source_pdf VARCHAR(500)
+  supplier_name VARCHAR(255)
+  header_trn VARCHAR(50)
+  lpo_number VARCHAR(100)
+  invoice_number VARCHAR(100)
+  date DATE
+  subtotal, vat, grand_total DECIMAL(12,2)
+  raw_json JSON
+  imported_at TIMESTAMP
+  UNIQUE (supplier_name, invoice_number)
+
+TABLE: import_log
+  id, source_pdf, status ENUM('success','failed','duplicate',
+  'ocr_fallback'), message, imported_at
+
+TABLE: invoice_audit
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
+  invoice_id INT UNSIGNED (no FK - survives deletes)
+  action ENUM('create','update','delete','status_change')
+  field_name VARCHAR(100)
+  old_value TEXT
+  new_value TEXT
+  changed_at TIMESTAMP
+
+TABLE: users  (Phase 1 - LOCAL ONLY)
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
+  username VARCHAR(50) NOT NULL UNIQUE
+  password_hash VARCHAR(255) NOT NULL
+  full_name VARCHAR(100)
+  email VARCHAR(255)
+  role ENUM('admin','user') NOT NULL DEFAULT 'user'
+  is_active TINYINT(1) NOT NULL DEFAULT 1
+  last_login TIMESTAMP NULL
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+
+-------------------------
+9. FRONTEND ARCHITECTURE
+-------------------------
+
+Single HTML file, no framework.
+
+CONSTANTS at top of <script>:
+  const API_URL = 'http://127.0.0.1:5000';   // local
+  // or 'https://aspicom-invoicing-production.up.railway.app'; for prod
+
+KEY HELPERS:
+  api('/api/path', opts)  - fetch wrapper, unwraps envelope, throws on error
+  toast('msg', 'success'|'error'|'info')
+  fmt(n, currency)         - currency-aware money formatter
+                             USD -> '$1,200.00', AED -> 'AED 1,200.00'
+                             Default USD if currency not passed
+  modalCur()               - reads active currency from invoice form
+  $ = querySelector
+  parseInt(id, 10)         - ALWAYS parse IDs from HTML before using
+
+SIDEBAR NAV ITEMS (in order):
+  1. Dashboard
+  2. Invoices
+  3. Quotations
+  4. Statements
+  5. VAT Report
+  6. Clients
+  7. Inventory
+  8. Supplier Bills
+  9. Company
+
+BELL (top-right of main):
+  Shows low-stock count badge
+  Click -> dropdown lists items with balance < 20
+  Click outside -> closes
+
+CLIENT LIST - TYPEAHEAD:
+  The "Client" field in the invoice form is a searchable dropdown:
+  - Type -> filters clients live
+  - Starts-with matches sort first, then alphabetical
+  - Arrow keys to navigate, Enter to select, Escape to close
+  - Uses hidden <select id="f-client"> for the actual value
+
+STATEMENTS TAB:
+  1. Client list (searchable, alphabetical)
+  2. Click client -> full statement view
+     - Opening / Invoiced / Paid / Closing / VAT cards
+     - Aging: Current, 1-30, 31-60, 61-90, 90+
+     - Transactions table: Date, Type, Reference, Debit, Credit,
+       VAT, Balance
+     - From/To date filters + quick buttons
+     - "<- Back to Statements"
+
+VAT REPORT TAB:
+  - Filters: From/To + quick buttons + Company + Currency + Client
+  - Cards: Total VAT / Taxable value / Invoiced (total) / Invoices
+  - By Company breakdown (only when single currency)
+  - By Currency breakdown (only when mixed currencies)
+  - Invoices table: Date, Invoice #, Client, Company, Currency,
+    Subtotal, Discount, Taxable, VAT, Total
+  - TOTAL row at bottom (one per currency if mixed)
+  - Amber note "Mixed currencies" when USD + AED together
+
+DASHBOARD:
+  - 5 stat cards: Outstanding / Overdue / Paid this month /
+    Total Collected / Total Outstanding
+  - LOW STOCK section: bar chart of low-stock items
+    (bars scaled to 20, rotating color per bar, par-level dashes)
+  - Recent invoices table
+
+INVOICE/QUOTATION FORM:
+  Fields in order:
+    - Issuing company (dropdown, locked on edit)
+    - Currency (dropdown USD/AED, editable)
+    - Client (searchable typeahead)
+    - LPO #, Invoice #, Date issued, Due date
+    - Line items: Product | Brand | Unit | Qty | FOC | Disc% |
+      VAT% | Amount | VAT | Total | x
+    - Payments section (invoice only)
+    - Status & notes
+
+PRINT SHEET:
+  - Header: company logo, name, address, TRN, phone, email,
+    PO Box (from invoice's company)
+  - Right: TAX INVOICE or QUOTATION + TRN + LPO/Invoice#/Date
+  - Client block: name, address, TRN, PO Box (client's)
+  - Line items table
+  - Totals: Subtotal, Total Discount, Total VAT, Grand Total
+  - Sign-off:
+      [ STAMP ]
+      Best regards,
+      Signee
+      Company name
+      Mobile #
+    (stamp on top-left, text below - finalized layout)
+
+-------------------------
+10. CRITICAL PATTERNS
+-------------------------
+
+1. IDs from HTML are STRINGS -> parseInt(id, 10) before use.
+
+2. Data-id attribute vs actual id:
+   HTML sets `data-id="${x.id}"` (string)
+   Always parse before comparing to numeric IDs.
+
+3. Money in JS:
+   Backend returns strings ("1200.00")
+   fmt() accepts both strings and numbers
+   fmt(n, currency) - pass currency for correct symbol
+
+4. Line endings:
+   Files use LF (\n), NOT CRLF
+   PowerShell find/replace patches must match LF
+   Multi-line heredoc patches are unreliable - use SINGLE-LINE
+   or TWO-LINE anchors
+
+5. After HTML/JS changes:
+   Hard refresh (Ctrl+Shift+R) in browser
+   Check DevTools Console for red errors
+
+6. After .py changes:
+   Flask debug mode auto-reloads
+   But safest to Ctrl+C and re-run Flask
+
+7. Browser extensions (Copilot, ChatGPT):
+   Inject HTML into localhost pages -> steal click events
+   Use Incognito when debugging odd behavior
+
+8. ALWAYS start Flask with venv Python (see section 16)
+
+-------------------------
+11. DEPLOYMENT WORKFLOW
+-------------------------
+
+EVERY DEPLOY FOLLOWS THIS 8-STEP FLOW:
+
+STEP 1 - Copy frontend -> docs
+  Copy-Item C:\Users\farha\OneDrive\Pictures\invoicing_project\frontend\invoicing.html C:\Users\farha\OneDrive\Pictures\invoicing_project\docs\index.html -Force
+
+STEP 2 - Swap URL to Railway in docs
+  $path = 'C:\Users\farha\OneDrive\Pictures\invoicing_project\docs\index.html'
+  $content = Get-Content $path -Raw
+  $old = "const API_URL = 'http://127.0.0.1:5000';"
+  $new = "const API_URL = 'https://aspicom-invoicing-production.up.railway.app';"
+  if ($content.Contains($old)) {
+    $content = $content.Replace($old, $new)
+    Set-Content $path $content -NoNewline
+    Write-Host "SUCCESS" -ForegroundColor Green
+  }
+
+STEP 3 - Verify URL
+  Select-String -Path C:\Users\farha\OneDrive\Pictures\invoicing_project\docs\index.html -Pattern "const API_URL"
+
+STEP 4 - Node syntax check
+  $html = Get-Content C:\Users\farha\OneDrive\Pictures\invoicing_project\docs\index.html -Raw
+  $start = $html.IndexOf('<script>') + 8
+  $end = $html.LastIndexOf('</script>')
+  $js = $html.Substring($start, $end - $start)
+  $js | Set-Content C:\temp\check_docs.js
+  node --check C:\temp\check_docs.js
+
+STEP 5 - Git status
+  cd C:\Users\farha\OneDrive\Pictures\invoicing_project
+  git status
+
+STEP 6 - Delete backup files + git add
+  (Remove-Item .bak-* files)
+  git add <specific files>
+
+STEP 7 - Commit + push
+  git commit -m "message"
+  git push
+
+STEP 8 - Wait 2 min, test production in Incognito
+
+DATABASE MIGRATION (local):
+  Save migration to C:\temp\migrate_*.py, then:
+  python C:\temp\migrate_*.py
+
+DATABASE MIGRATION (Railway):
+  Railway Console (bash) -> paste:
+  python3 << 'PYEOF'
+  import pymysql, os
+  conn = pymysql.connect(host=os.environ['DB_HOST'],
+                         port=int(os.environ['DB_PORT']),
+                         user=os.environ['DB_USER'],
+                         password=os.environ['DB_PASSWORD'],
+                         database=os.environ['DB_NAME'])
+  with conn.cursor() as cur:
+      stmts = ["ALTER TABLE ...", ...]
+      for s in stmts:
+          try:
+              cur.execute(s); print(f"OK: {s[:60]}...")
+          except Exception as e: print(f"SKIP: {e}")
+      conn.commit()
+  conn.close()
+  PYEOF
+
+-------------------------
+12. WHAT'S BEEN COMPLETED
+-------------------------
+
+DONE - LIVE IN PRODUCTION:
+  [x] Full backend with 10+ route files
+  [x] Database schema (10 tables)
+  [x] Supplier PDF import
+  [x] Payment tracking (partial payments, balance, auto-Paid)
+  [x] Audit trail
+  [x] Company logo/stamp uploads
+  [x] Multi-company support
+  [x] Multi-currency (USD + AED per invoice)
+  [x] Statements tab with per-client statements + aging
+  [x] VAT card + VAT column in Statements
+  [x] Searchable client picker (typeahead)
+  [x] Company PO Box (515000) prints on invoice header
+  [x] VAT Report tab (company-wide VAT summary)
+  [x] Low-stock bell + bar chart
+  [x] Inventory edit bug fixed (string-vs-number id)
+
+DONE - LOCAL ONLY (not yet deployed):
+  [x] Auth backend - Phase 1 (users table + seed)
+  [x] Auth backend - Phase 2 (login, JWT, role enforcement)
+
+-------------------------
+13. PENDING FEATURES
+-------------------------
+
+NEXT TASK:
+  1. Frontend login page (Phase 3)
+     - Login screen shown before app loads
+     - Token stored in localStorage
+     - Authorization: Bearer <token> header on all API calls
+     - Logout button
+     - Hide admin buttons for user role
+     - "View-only" banner for non-admin
+     Estimated: ~2.5 hours
+
+AFTER LOGIN:
+  2. Deploy auth to production (Phase 5)
+  3. Email feature (send invoice/quotation via email)
+     - Uses Gmail SMTP (Info@aspicomllc.com + app password)
+     - Requires PDF generator first
+  4. PDF generator (reportlab - currently 501)
+  5. Logo/stamp upload for DDR company (second company)
+  6. Reports page (monthly sales, outstanding)
+  7. Per-company invoice number prefixes
+  8. Enhanced inventory fields (Usman hasn't decided the list)
+
+-------------------------
+14. HOW TO HELP ME
+-------------------------
+
+WHEN I SHARE AN ERROR:
+  - Read the FULL error, ask for context if needed
+  - Give me ONE command at a time
+  - Wait for output before next step
+  - Never assume - ask me to confirm
+
+WHEN I ASK FOR FEATURES:
+  - Confirm understanding FIRST
+  - Ask clarifying questions BEFORE coding
+  - Build in stages, pause between
+  - Give test steps after each stage
+  - Warn about edge cases
+
+WHEN I'M DEBUGGING:
+  - Ask for the exact error message
+  - Ask what I clicked / did
+  - Give ONE diagnostic at a time
+  - Wait for output
+  - Common issues: browser cache (Ctrl+Shift+R), wrong API_URL,
+    string-vs-number bugs, LF vs CRLF in patches, Flask not restarted
+    after .env changes
+
+WHEN WRITING PATCHES:
+  - Prefer SINGLE-LINE or TWO-LINE find-strings
+  - Use LF line endings (\n), NOT CRLF
+  - Include a backup step (.bak-<name>)
+  - Include SUCCESS/ERROR print so I know if it worked
+  - Never use multi-line heredoc find-strings (they've failed before)
+
+MY LANGUAGE:
+  Simple English + Urdu/Roman Urdu OK.
+  If technical terms needed, define them.
+
+-------------------------
+15. IMMEDIATE NEXT STEP
+-------------------------
+
+Current state:
+  - All shipped features working in production
+  - Auth backend (Phase 1 + 2) working LOCALLY only - NOT pushed
+  - AUTH_ENABLED=false locally (no login required for dev)
+
+Immediate next step: Phase 3 - Frontend login page
+  - Login screen shown before app loads
+  - Token stored in localStorage
+  - Authorization header on every API call
+  - Logout button
+  - Hide admin buttons when role = 'user'
+  - "View-only" banner for non-admin users
+  - Test locally with AUTH_ENABLED=true
+
+If picking up fresh, ask:
+  1. What's my current task? -> Frontend login page (Phase 3)
+  2. Show current git status / file state
+  3. Any active patches? -> Check for .bak-* files
+
+After Phase 3:
+  - Phase 4: full local testing (AUTH_ENABLED=true)
+  - Phase 5: deploy to Railway (see section 16 auth steps)
+  - Then: email feature, DDR logo upload, PDF generator
+
+-------------------------
+16. AUTHENTICATION STATUS (2026-10-09)
+-------------------------
+
+PHASE 1 - DONE (Local DB only):
+  - users table created
+  - 2 users seeded:
+      farhan (admin) / REDACTED-CHANGED-2026-10-09
+      usman  (user)  / REDACTED-CHANGED-2026-10-09
+  - Passwords hashed with werkzeug (never plain)
+  - IMPORTANT: change these passwords before production deploy
+
+PHASE 2 - DONE (Backend - LOCAL ONLY):
+  New files:
+    routes/auth.py       - login, /me, logout endpoints
+    utils/auth.py        - JWT generate/verify + decorators
+  Updated:
+    app.py               - blueprint + @app.before_request hook
+    models.py            - User model added
+    .env                 - JWT_SECRET + AUTH_ENABLED=false
+    requirements.txt     - PyJWT==2.15.1 (needs to be verified added)
+
+  Auth behavior (verified):
+    - AUTH_ENABLED=false -> no auth enforced (dev mode)
+    - AUTH_ENABLED=true  -> all /api/* need Bearer token
+    - admin role         -> can POST/PUT/DELETE
+    - user role          -> read-only (403 on writes)
+    - Public: /api/auth/* and /api/health
+    - OPTIONS requests pass through (CORS preflight)
+
+PHASE 3 - NOT DONE (Frontend login page):
+  See section 13 for details.
+
+PHASE 4 - Local testing (AUTH_ENABLED=true) - NOT DONE
+
+PHASE 5 - Production deploy - NOT DONE
+  Requires:
+    - Migrate users table to Railway DB
+    - Generate NEW JWT_SECRET for production (different from local)
+    - Add JWT_SECRET + AUTH_ENABLED=true to Railway env vars
+    - Change user passwords from test values
+  NOT PUSHED YET - Railway still runs old code
+
+=========================================================
+17. CRITICAL - FLASK LAUNCH COMMAND
+=========================================================
+
+ALWAYS start Flask with venv Python:
+  C:\Users\farha\OneDrive\Pictures\invoicing_project\venv\Scripts\python.exe app.py
+
+DO NOT use plain `python app.py` - that runs system Python 3.14,
+NOT the venv (Python 3.10). The venv is where PyJWT and all
+project dependencies live.
+
+If port 5000 is stuck (multiple python.exe running):
+  Get-Process python* -ErrorAction SilentlyContinue | Stop-Process -Force
+  (may need admin PowerShell for some processes)
+
+Then verify stopped:
+  try { Invoke-WebRequest "http://localhost:5000/api/health" -UseBasicParsing -ErrorAction Stop | Out-Null; Write-Host "STILL RUNNING" -ForegroundColor Red } catch { Write-Host "STOPPED" -ForegroundColor Green }
+
+=========================================================
+18. CRITICAL - AFTER FULL-FILE REPLACEMENT
+=========================================================
+
+When replacing models.py (or any file) with a new version
+from Claude or any AI:
+  ALWAYS verify critical columns survived:
+    Select-String -Path models.py -Pattern "currency"
+    Select-String -Path models.py -Pattern "company_id"
+    Select-String -Path models.py -Pattern "class User"
+
+Claude's version may be from an older snapshot and can lose
+recent changes. This exact issue cost us a debugging session
+(2026-10-09) - VAT Report crashed because the currency column
+was missing from the Invoice model.
+
+=========================================================
+19. CURRENT .env (local dev)
+=========================================================
+
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=infra142
+DB_NAME=aspicom_invoicing
+
+FLASK_ENV=development
+FLASK_DEBUG=1
+JWT_SECRET=<64-char hex - regenerate for production>
+AUTH_ENABLED=false
+
+=========================================================
+20. WORKFLOW - HOW WE WORK TOGETHER
+=========================================================
+
+The AI does NOT have access to your files. Everything goes
+through Farhan pasting commands and outputs.
+
+TWO TYPES OF WORK:
+
+TYPE 1 - AI WRITES A PATCH (small tasks):
+  - PowerShell command with find-string / replace-string
+  - Includes: backup step, SUCCESS/ERROR print
+  - Uses single-line or two-line anchors only
+  - Used when: change is 1-15 lines, in one file, low risk
+
+TYPE 2 - AI WRITES A PROMPT FOR CLAUDE (big tasks):
+  - Claude produces code in a separate chat
+  - Farhan brings results back to the main AI for verification
+  - Used when: new file, new endpoint, 3+ files, feature work
+
+VERIFICATION LOOP:
+  1. AI gives command
+  2. Farhan runs it
+  3. Farhan pastes output
+  4. AI verifies BEFORE giving next command
+  5. If SUCCESS -> run a Select-String to confirm
+  6. If ERROR -> diagnose, do not move on
+
+DEPLOY FLOW (8 steps):
+  1. Copy frontend -> docs
+  2. Swap API_URL to Railway in docs
+  3. Verify URL
+  4. Node syntax check
+  5. git status
+  6. Delete .bak-* + git add
+  7. git commit + git push
+  8. Wait 2 min, test in Incognito
+
+=========================================================
+END OF HANDOFF
+=========================================================
+
+=========================================================
+USER MANAGEMENT (2026-10-10) — Backend DONE
+=========================================================
+
+NEW FILES:
+  routes/users.py        — user management endpoints (admin only)
+  scripts/add_is_root.py — migration (adds is_root column)
+
+MODELS UPDATE:
+  User.is_root column added (BOOLEAN, default False)
+  farhan is now root user (is_root=1) — cannot be deleted/demoted/
+  deactivated by anyone, including itself
+
+ENDPOINTS (all require admin):
+  GET    /api/users                          — list
+  POST   /api/users                          — create (auto-password)
+  PUT    /api/users/<id>                     — edit name/email/role
+  PUT    /api/users/<id>/password            — reset password
+  PUT    /api/users/<id>/deactivate          — deactivate
+  PUT    /api/users/<id>/activate            — reactivate
+  DELETE /api/users/<id>                     — delete permanently
+
+SAFETY RULES (all verified with 9-step test):
+  - Root user cannot be deleted/demoted/deactivated by anyone
+  - Cannot edit/delete/deactivate self
+  - Cannot remove last active administrator
+  - Usernames are case-insensitive unique
+  - Generated passwords are 12 chars (readable, no 0/O/1/l/I)
+  - Password shown ONCE in response
+  - Deleting user only removes login (invoices/data stay)
+
+FRONTEND: Not built yet (Stage B)
+
+NEXT STEP: Build Users tab frontend (Stage B)
+  - Sidebar "Users" item (admin only)
+  - List / Add / Edit / Deactivate / Delete
+  - Show generated password once on create/reset
+
+TEST PASSWORDS (already rotated once):
+  farhan (root/admin) / XydwUwxSJ0FST-9-
+  usman  (user)       / PMAWP5AYIznPSahK
+  (Change before production deploy — use in-app reset)
+
+=========================================================
+USER MANAGEMENT (2026-10-10) — FULLY DONE (Local)
+=========================================================
+
+BACKEND (routes/users.py):
+  GET    /api/users                          — list (admin only)
+  POST   /api/users                          — create (auto-password)
+  PUT    /api/users/<id>                     — edit name/email/role
+  PUT    /api/users/<id>/password            — reset password
+  PUT    /api/users/<id>/deactivate          — deactivate
+  PUT    /api/users/<id>/activate            — reactivate
+  DELETE /api/users/<id>                     — delete permanently
+
+MODEL:
+  User.is_root BOOLEAN added (default False)
+  farhan = root user (is_root=1)
+
+FRONTEND:
+  Sidebar "Users" item — VISIBLE ONLY to admin
+  #view-users — list page with Root badge + role pills
+  #user-overlay — modal for add/edit/reset/deactivate/delete
+  Password display box (green) shows generated password once
+  Copy to clipboard button
+  applyRolePermissions() also hides nav-users for non-admin
+
+SAFETY RULES (all 12 tests passed):
+  - Root cannot be deleted/demoted/deactivated by anyone
+  - Cannot edit/delete/deactivate self
+  - Cannot remove last active administrator
+  - Usernames case-insensitive unique
+  - Generated passwords 12 chars, readable
+  - Password shown ONCE per create/reset
+  - Delete only removes login, invoices stay
+
+TEST PASSWORDS (change before production):
+  farhan (root/admin) / XydwUwxSJ0FST-9-
+  usman  (user)       / PMAWP5AYIznPSahK
+
+NEXT: Deploy everything to production (see Deployment section)

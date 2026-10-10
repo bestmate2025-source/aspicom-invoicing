@@ -12,10 +12,11 @@ from __future__ import annotations
 import os
 
 from dotenv import load_dotenv
-from flask import Flask, send_from_directory
+from flask import Flask, g, request, send_from_directory
 from flask_cors import CORS
 
 from extensions import db
+from routes.auth import auth_bp
 from routes.clients import clients_bp
 from routes.companies import companies_bp
 from routes.company import company_bp
@@ -23,7 +24,10 @@ from routes.inventory import inventory_bp
 from routes.invoices import invoices_bp, payments_bp
 from routes.pdf import pdf_bp
 from routes.statements import statements_bp
+from routes.users import users_bp
 from routes.vat_report import vat_report_bp
+from utils.auth import auth_enabled, get_current_user
+from utils.responses import api_response
 
 load_dotenv()
 
@@ -56,6 +60,11 @@ def create_app() -> Flask:
 
     db.init_app(app)
 
+    # Fail at start-up (clear message in the Railway logs) rather than with a
+    # confusing 500 on the first request.
+    if auth_enabled() and not os.environ.get("JWT_SECRET", "").strip():
+        raise RuntimeError("AUTH_ENABLED is true but JWT_SECRET is not set.")
+
     # Local dev only — CORS wide open so the standalone HTML frontend
     # (served separately, e.g. via `python -m http.server` or opened as a
     # file) can call this API. Tighten to specific origins before any real
@@ -65,6 +74,8 @@ def create_app() -> Flask:
      methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
      allow_headers=["Content-Type", "Authorization"])
     
+    app.register_blueprint(auth_bp, url_prefix="/api/auth")  # login / me / logout — see routes/auth.py
+    app.register_blueprint(users_bp, url_prefix="/api/users")  # user management (admin only) — see routes/users.py
     app.register_blueprint(clients_bp, url_prefix="/api/clients")
     app.register_blueprint(invoices_bp, url_prefix="/api/invoices")
     app.register_blueprint(payments_bp, url_prefix="/api")  # DELETE /api/payments/<id> — see routes/invoices.py
@@ -74,6 +85,37 @@ def create_app() -> Flask:
     app.register_blueprint(pdf_bp, url_prefix="/api")  # /api/parse-pdf, /api/import-pdf
     app.register_blueprint(statements_bp, url_prefix="/api")  # GET /api/clients/<id>/statement — see routes/statements.py
     app.register_blueprint(vat_report_bp, url_prefix="/api")  # GET /api/vat-report — see routes/vat_report.py
+
+    @app.before_request
+    def _enforce_auth():
+        """When AUTH_ENABLED=true, every /api/ call needs a valid login.
+
+        Read-only users ('user' role) may only GET; POST / PUT / DELETE / PATCH
+        need the 'admin' role. Does nothing at all when AUTH_ENABLED is not "true".
+        """
+        if not auth_enabled():
+            return None
+
+        # Browsers send an OPTIONS "preflight" (with no token) before any call that
+        # carries an Authorization header. Blocking it would break every request.
+        if request.method == "OPTIONS":
+            return None
+
+        path = request.path
+        if path.startswith("/api/auth/") or path == "/api/health":
+            return None  # public
+        if not path.startswith("/api/"):
+            return None  # /uploads/... and other non-API paths
+
+        user = get_current_user()
+        if user is None:
+            return api_response(error="unauthorized", message="Authentication required."), 401
+
+        if request.method in ("POST", "PUT", "DELETE", "PATCH") and user.role != "admin":
+            return api_response(error="forbidden", message="Admin access required."), 403
+
+        g.current_user = user
+        return None
 
     @app.route("/api/health")
     def health():

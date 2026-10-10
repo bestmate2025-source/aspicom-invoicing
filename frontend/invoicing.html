@@ -37,7 +37,7 @@ nav{display:flex; flex-direction:column; gap:2px;}
 .nav-item{padding:9px 10px; border-radius:6px; font-size:14px; font-weight:500; color:var(--sub); cursor:pointer; border:none; background:none; text-align:left; font-family:inherit; width:100%; transition:background 0.15s, color 0.15s;}
 .nav-item:hover{background:var(--grey-soft); color:var(--ink);}
 .nav-item.active{background:var(--pine-soft); color:var(--pine);}
-main{flex:1; padding:32px 40px 60px; max-width:980px; overflow-x:auto;}
+main{flex:1; padding:32px 40px 32px; overflow-y:auto; overflow-x:hidden; height:100vh; box-sizing:border-box;}
 h1{font-family:'Fraunces',serif; font-size:28px; font-weight:500; margin:0 0 4px;}
 .lede{color:var(--sub); font-size:14px; margin:0 0 28px;}
 .stats{display:flex; gap:16px; margin-bottom:32px; flex-wrap:wrap;}
@@ -46,6 +46,11 @@ h1{font-family:'Fraunces',serif; font-size:28px; font-weight:500; margin:0 0 4px
 .stat-label{font-size:12px; color:var(--sub); font-weight:600; text-transform:uppercase; letter-spacing:0.04em;}
 .stat-value{font-family:'Fraunces',serif; font-size:30px; margin-top:4px;}
 .stat-value.amber{color:var(--amber);} .stat-value.pine{color:var(--pine);}
+.stat.stat-c-amber{background:#F5E9DC; border-color:#E8D4BC;} .stat.stat-c-amber .stat-value{color:#B8722E;}
+.stat.stat-c-red{background:#F5D6D3; border-color:#E8BFBB;} .stat.stat-c-red .stat-value{color:#B0473F;}
+.stat.stat-c-pine{background:#E6EFEC; border-color:#C9DED7;} .stat.stat-c-pine .stat-value{color:#0B5D52;}
+.stat.stat-c-blue{background:#DDE7F0; border-color:#C0D0E2;} .stat.stat-c-blue .stat-value{color:#2E5F8A;}
+.stat.stat-c-amber-dark{background:#F5E1C8; border-color:#E8C9A0;} .stat.stat-c-amber-dark .stat-value{color:#8C5522;}
 .toolbar{display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; gap:12px; flex-wrap:wrap;}
 .tabs{display:flex; gap:4px;}
 .tab{padding:6px 12px; border-radius:16px; font-size:13px; font-weight:500; border:1px solid var(--line); background:var(--surface); color:var(--sub); cursor:pointer; transition:all 0.15s;}
@@ -156,7 +161,18 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
   .print-actions{display:none;}
   .modal{box-shadow:none; max-width:100%;}
 }
-@media (max-width:640px){
+@media (prefers-color-scheme: dark){
+  .stat.stat-c-amber{background:#2E2417; border-color:#4A3A24;}
+  .stat.stat-c-red{background:#2E1A18; border-color:#4A2A28;}
+  .stat.stat-c-pine{background:#1B2B27; border-color:#2A423D;}
+  .stat.stat-c-blue{background:#1B2530; border-color:#2A3A4A;}
+  .stat.stat-c-amber-dark{background:#2A2015; border-color:#453220;}
+  .stat.stat-c-amber .stat-value{color:#D89A5A;}
+  .stat.stat-c-red .stat-value{color:#D3766D;}
+  .stat.stat-c-pine .stat-value{color:#3FA593;}
+  .stat.stat-c-blue .stat-value{color:#6FA3D4;}
+  .stat.stat-c-amber-dark .stat-value{color:#C88A4E;}
+}@media (max-width:640px){
   body{flex-direction:column;}
   .rail{width:100%; flex-direction:row; align-items:center; padding:14px 16px; gap:16px; border-right:none; border-bottom:1px solid var(--line); overflow-x:auto;}
   nav{flex-direction:row;}
@@ -186,7 +202,14 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
     <button class="nav-item" data-view="inventory">Inventory</button>
     <button class="nav-item" data-view="supplier">Supplier Bills</button>
     <button class="nav-item" data-view="company">Company</button>
+    <button class="nav-item" data-view="users" id="nav-users" style="display:none;">Users</button>
   </nav>
+  <div id="sidebar-user" style="margin-top:auto; padding-top:16px; border-top:1px solid var(--line);">
+    <div id="sidebar-user-name" style="font-size:13px; font-weight:600; margin-bottom:2px;"></div>
+    <div id="sidebar-user-role" style="font-size:11px; color:var(--sub); margin-bottom:8px;"></div>
+    <div id="view-only-badge" style="display:none; font-size:11px; font-weight:600; color:var(--amber); background:var(--amber-soft); padding:3px 8px; border-radius:10px; margin-bottom:8px; text-align:center;">View-only access</div>
+    <button class="btn ghost sm" id="logout-btn" style="width:100%;">Sign out</button>
+  </div>
 </div>
 
 <main>
@@ -204,11 +227,11 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
     <h1>Good to see you</h1>
     <p class="lede">Here's where things stand.</p>
     <div class="stats">
-      <div class="stat"><div class="stat-label">Outstanding</div><div class="stat-value" id="stat-outstanding">—</div></div>
-      <div class="stat"><div class="stat-label">Overdue</div><div class="stat-value amber" id="stat-overdue">—</div></div>
-      <div class="stat"><div class="stat-label">Paid this month</div><div class="stat-value pine" id="stat-paid">—</div></div>
-      <div class="stat"><div class="stat-label">Total Collected</div><div class="stat-value pine" id="stat-collected">—</div></div>
-      <div class="stat"><div class="stat-label">Total Outstanding</div><div class="stat-value amber" id="stat-outstanding-total">—</div></div>
+      <div class="stat stat-c-amber"><div class="stat-label">Outstanding</div><div class="stat-value" id="stat-outstanding">—</div></div>
+      <div class="stat stat-c-red"><div class="stat-label">Overdue</div><div class="stat-value amber" id="stat-overdue">—</div></div>
+      <div class="stat stat-c-pine"><div class="stat-label">Paid this month</div><div class="stat-value pine" id="stat-paid">—</div></div>
+      <div class="stat stat-c-blue"><div class="stat-label">Total Collected</div><div class="stat-value pine" id="stat-collected">—</div></div>
+      <div class="stat stat-c-amber-dark"><div class="stat-label">Total Outstanding</div><div class="stat-value amber" id="stat-outstanding-total">—</div></div>
     </div>
     <div id="inventory-chart-section" style="background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:20px; margin-bottom:24px; box-shadow:var(--shadow-sm);">
       <div class="section-title" style="margin-top:0;">Low Stock</div>
@@ -334,6 +357,15 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
     <table><thead><tr><th>Product</th><th>Par level</th><th>Balance</th><th>Status</th></tr></thead>
       <tbody id="inventory-rows"></tbody>
     </table>
+  </div>
+
+  <div id="view-users" style="display:none;">
+    <h1>Users</h1>
+    <p class="lede">Manage who can access the system.</p>
+    <div class="toolbar" style="justify-content:flex-end;">
+      <button class="btn" id="new-user-btn">+ Add user</button>
+    </div>
+    <div class="clients-list" id="users-list"></div>
   </div>
 
   <div id="view-company" style="display:none;">
@@ -503,6 +535,42 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
   </div>
 </div>
 
+<div class="overlay" id="user-overlay">
+  <div class="modal">
+    <h2 id="user-modal-title">Add user</h2>
+    <form id="user-form">
+      <div class="field"><label>Full name</label><input type="text" id="u-fullname" required></div>
+      <div class="field"><label>Username</label><input type="text" id="u-username" required autocomplete="off"></div>
+      <div class="field"><label>Email (optional)</label><input type="email" id="u-email"></div>
+      <div class="field"><label>Role</label>
+        <select id="u-role">
+          <option value="user">View-only (read access)</option>
+          <option value="admin">Administrator (full access)</option>
+        </select>
+      </div>
+      <div id="user-password-box" style="display:none; background:var(--pine-soft); border:1px solid var(--pine); border-radius:8px; padding:12px; margin-bottom:14px;">
+        <div style="font-size:12px; font-weight:600; color:var(--pine); margin-bottom:4px;">NEW PASSWORD (shown once)</div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <code id="user-password-value" style="font-size:15px; font-weight:700; flex:1; word-break:break-all; color:var(--ink);"></code>
+          <button type="button" class="btn ghost sm" id="copy-password-btn">Copy</button>
+        </div>
+        <div style="font-size:11px; color:var(--sub); margin-top:6px;">Give this to the user. It won't be shown again.</div>
+      </div>
+      <div class="modal-actions">
+        <div style="display:flex; gap:8px;">
+          <button type="button" class="btn ghost" id="reset-password-btn" style="display:none;">Reset password</button>
+          <button type="button" class="btn ghost" id="toggle-active-btn" style="display:none;">Deactivate</button>
+          <button type="button" class="btn ghost" id="delete-user-btn" style="display:none; color:var(--danger); border-color:var(--danger);">Delete</button>
+        </div>
+        <div class="right">
+          <button type="button" class="btn ghost" id="cancel-user-btn">Cancel</button>
+          <button type="submit" class="btn">Save</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
 <div class="overlay" id="client-overlay">
   <div class="modal">
     <h2 id="client-modal-title">New client</h2>
@@ -574,12 +642,73 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
 
 <div id="toast-stack"></div>
 
+<div id="login-screen" style="display:none; position:fixed; inset:0; z-index:200; background:var(--bg); align-items:center; justify-content:center;">
+  <div style="background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:32px; width:100%; max-width:380px; box-shadow:var(--shadow-lg);">
+    <div style="font-family:'Fraunces',serif; font-size:26px; font-weight:600; margin-bottom:4px;">Ledger<span style="color:var(--pine);">.</span></div>
+    <div style="color:var(--sub); font-size:13px; margin-bottom:22px;">Sign in to continue</div>
+    <form id="login-form">
+      <div class="field">
+        <label>Username</label>
+        <input type="text" id="login-username" required autocomplete="username">
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" id="login-password" required autocomplete="current-password">
+      </div>
+      <div id="login-error" style="display:none; color:var(--danger); font-size:13px; margin-bottom:10px;"></div>
+      <button type="submit" class="btn" id="login-submit" style="width:100%;">Sign in</button>
+    </form>
+  </div>
+</div>
+
 <script>
 const API_URL = 'http://127.0.0.1:5000';
 
-async function api(path, options = {}) {
+// --- Auth state ---
+let authToken = null;
+let currentUser = null;
+
+function loadAuthFromStorage() {
   try {
-    const res = await fetch(`${API_URL}${path}`, options);
+    const raw = localStorage.getItem('aspicom.auth');
+    if (!raw) return;
+    const obj = JSON.parse(raw);
+    if (obj && obj.token) {
+      authToken = obj.token;
+      currentUser = obj.user || null;
+    }
+  } catch (e) { /* ignore corrupted storage */ }
+}
+
+function saveAuthToStorage() {
+  if (authToken) {
+    localStorage.setItem('aspicom.auth', JSON.stringify({ token: authToken, user: currentUser }));
+  } else {
+    localStorage.removeItem('aspicom.auth');
+  }
+}
+
+function clearAuth() {
+  authToken = null;
+  currentUser = null;
+  localStorage.removeItem('aspicom.auth');
+}
+
+function isAdmin() {
+  return !!currentUser && currentUser.role === 'admin';
+}
+
+async function api(path, options = {}) {
+  const opts = { ...options, headers: { ...(options.headers || {}) } };
+  if (authToken) opts.headers['Authorization'] = 'Bearer ' + authToken;
+  let res;
+  try {
+    res = await fetch(`${API_URL}${path}`, opts);
+  if (res.status === 401) {
+    clearAuth();
+    if (typeof showLoginScreen === 'function') showLoginScreen();
+    throw new Error('Session expired. Please sign in again.');
+  }
     const body = await res.json().catch(() => ({}));
     if (!res.ok || body.error) {
       const msg = body.message || `HTTP ${res.status}`;
@@ -595,6 +724,102 @@ async function api(path, options = {}) {
   }
 }
 
+function showLoginScreen() {
+  const el = document.getElementById('login-screen');
+  if (el) el.style.display = 'flex';
+  const rail = document.querySelector('body > .rail');
+  const main = document.querySelector('main');
+  if (rail) rail.style.display = 'none';
+  if (main) main.style.display = 'none';
+}
+
+function showApp() {
+  const el = document.getElementById('login-screen');
+  if (el) el.style.display = 'none';
+  const rail = document.querySelector('body > .rail');
+  const main = document.querySelector('main');
+  if (rail) rail.style.display = 'flex';
+  if (main) main.style.display = 'block';
+  renderSidebarUser();
+  applyRolePermissions();
+}
+
+function renderSidebarUser() {
+  const nameEl = document.getElementById('sidebar-user-name');
+  const roleEl = document.getElementById('sidebar-user-role');
+  const badge = document.getElementById('view-only-badge');
+  if (!nameEl || !roleEl) return;
+  if (currentUser) {
+    nameEl.textContent = currentUser.full_name || currentUser.username || '';
+    roleEl.textContent = currentUser.role === 'admin' ? 'Administrator' : 'View-only user';
+    if (badge) badge.style.display = currentUser.role === 'admin' ? 'none' : 'block';
+  } else {
+    nameEl.textContent = '';
+    roleEl.textContent = '';
+    if (badge) badge.style.display = 'none';
+  }
+}
+
+function applyRolePermissions() {
+  if (!currentUser) return;
+  const admin = currentUser.role === 'admin';
+  const hideIds = ['new-invoice-btn','new-quotation-btn','new-client-btn','new-inv-item-btn','new-company-btn','import-pdf-btn'];
+  hideIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = admin ? '' : 'none';
+  const navUsers = document.getElementById('nav-users');
+  if (navUsers) navUsers.style.display = admin ? '' : 'none';
+  });
+}
+
+async function doLogin(username, password) {
+  const res = await fetch(`${API_URL}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok || body.error) {
+    throw new Error(body.message || 'Login failed.');
+  }
+  authToken = body.data.token;
+  currentUser = body.data.user;
+  saveAuthToStorage();
+}
+
+function doLogout() {
+  clearAuth();
+  location.reload();
+}
+
+async function checkAuth() {
+  loadAuthFromStorage();
+
+  let devMode = false;
+  try {
+    const res = await fetch(`${API_URL}/api/invoices`);
+    if (res.status === 200) devMode = true;
+  } catch (e) { /* network issue � fall through to login */ }
+
+  if (devMode) {
+    showApp();
+    renderSidebarUser();
+    return true;
+  }
+
+  if (authToken) {
+    try {
+      const me = await api('/api/auth/me');
+      currentUser = me;
+      saveAuthToStorage();
+      showApp();
+      return true;
+    } catch (e) { clearAuth(); }
+  }
+
+  showLoginScreen();
+  return false;
+}
 function showOffline(on) {
   document.getElementById('offline-banner').classList.toggle('show', on);
   document.getElementById('offline-url').textContent = API_URL;
@@ -942,7 +1167,7 @@ document.querySelectorAll('.nav-item').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-        ['dashboard', 'invoices', 'quotations', 'statements', 'vat-report', 'clients', 'inventory', 'supplier', 'company'].forEach(v => {
+        ['dashboard', 'invoices', 'quotations', 'statements', 'vat-report', 'clients', 'inventory', 'supplier', 'company', 'users'].forEach(v => {
       $('#view-' + v).style.display = (v === btn.dataset.view) ? 'block' : 'none';
     });
   });
@@ -1832,6 +2057,179 @@ document.querySelectorAll('.nav-item').forEach(btn => {
 
 loadCompanies().then(renderCompanyList).catch(() => {});
 
+// ==========================================================
+// USERS TAB
+// ==========================================================
+let allUsers = [];
+let editingUserId = null;
+
+function rolePill(role) {
+  return role === 'admin'
+    ? '<span class="status-pill status-Paid">Administrator</span>'
+    : '<span class="status-pill status-Sent">View-only</span>';
+}
+
+function renderUsersList() {
+  const el = document.getElementById('users-list');
+  if (!el) return;
+  if (!allUsers.length) {
+    el.innerHTML = '<div class="empty">No users yet.</div>';
+    return;
+  }
+  el.innerHTML = allUsers.map(u => {
+    const tags = [];
+    if (u.is_root) tags.push('<span class="status-pill status-Overdue" style="margin-left:6px;">Root</span>');
+    if (!u.is_active) tags.push('<span class="status-pill status-Overdue" style="margin-left:6px;">Inactive</span>');
+    const last = u.last_login ? ('Last login: ' + u.last_login.slice(0, 10)) : 'Never logged in';
+    return `<div class="client-row" data-id="${u.id}">
+      <div>
+        <div class="cname">${u.full_name || u.username}${tags.join('')}</div>
+        <div class="cmeta">@${u.username} ${u.email ? '&middot; ' + u.email : ''}</div>
+        <div class="cmeta">${last}</div>
+      </div>
+      <div style="display:flex; align-items:center;">${rolePill(u.role)}</div>
+    </div>`;
+  }).join('');
+  el.querySelectorAll('.client-row').forEach(row => {
+    row.addEventListener('click', () => openUserModal(parseInt(row.dataset.id, 10)));
+  });
+}
+
+async function loadUsers() {
+  try {
+    allUsers = await api('/api/users');
+    renderUsersList();
+  } catch (err) {
+    toastErr('Could not load users: ' + err.message);
+  }
+}
+
+function openUserModal(id) {
+  id = id ? parseInt(id, 10) : null;
+  editingUserId = id;
+  const u = id ? allUsers.find(x => x.id === id) : null;
+
+  document.getElementById('user-modal-title').textContent = u ? 'Edit user' : 'Add user';
+  document.getElementById('u-fullname').value = u ? (u.full_name || '') : '';
+  document.getElementById('u-username').value = u ? u.username : '';
+  document.getElementById('u-username').disabled = !!u;   // can't change username
+  document.getElementById('u-email').value = u ? (u.email || '') : '';
+  document.getElementById('u-role').value = u ? u.role : 'user';
+  document.getElementById('u-role').disabled = !!(u && u.is_root);  // root role locked
+  document.getElementById('user-password-box').style.display = 'none';
+
+  const me = currentUser || {};
+  const isMe = u && me.id === u.id;
+  const isRoot = u && u.is_root;
+
+  document.getElementById('reset-password-btn').style.display = u ? 'inline-block' : 'none';
+  document.getElementById('toggle-active-btn').style.display = (u && !isRoot && !isMe) ? 'inline-block' : 'none';
+  document.getElementById('delete-user-btn').style.display = (u && !isRoot && !isMe) ? 'inline-block' : 'none';
+  if (u) {
+    document.getElementById('toggle-active-btn').textContent = u.is_active ? 'Deactivate' : 'Reactivate';
+  }
+  document.getElementById('user-overlay').classList.add('show');
+}
+
+document.getElementById('new-user-btn').addEventListener('click', () => openUserModal(null));
+document.getElementById('cancel-user-btn').addEventListener('click', () => {
+  document.getElementById('user-overlay').classList.remove('show');
+});
+
+document.getElementById('user-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const payload = {
+    full_name: document.getElementById('u-fullname').value.trim(),
+    email: document.getElementById('u-email').value.trim() || null,
+    role: document.getElementById('u-role').value,
+  };
+  try {
+    if (editingUserId) {
+      await api('/api/users/' + editingUserId, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      toastOk('User updated');
+    } else {
+      payload.username = document.getElementById('u-username').value.trim();
+      const res = await api('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      showPasswordBox(res.password);
+      toastOk('User created');
+    }
+    await loadUsers();
+  } catch (err) {
+    toastErr(err.message);
+  }
+});
+
+function showPasswordBox(pw) {
+  document.getElementById('user-password-value').textContent = pw;
+  document.getElementById('user-password-box').style.display = 'block';
+}
+
+document.getElementById('copy-password-btn').addEventListener('click', () => {
+  const pw = document.getElementById('user-password-value').textContent;
+  if (!pw) return;
+  navigator.clipboard.writeText(pw).then(() => toastOk('Password copied'));
+});
+
+document.getElementById('reset-password-btn').addEventListener('click', async () => {
+  if (!editingUserId) return;
+  if (!confirm('Reset this user\'s password? A new one will be shown once.')) return;
+  try {
+    const res = await api('/api/users/' + editingUserId + '/password', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+    showPasswordBox(res.password);
+    toastOk('Password reset');
+  } catch (err) {
+    toastErr(err.message);
+  }
+});
+
+document.getElementById('toggle-active-btn').addEventListener('click', async () => {
+  if (!editingUserId) return;
+  const u = allUsers.find(x => x.id === editingUserId);
+  const action = u && u.is_active ? 'deactivate' : 'activate';
+  try {
+    await api('/api/users/' + editingUserId + '/' + action, { method: 'PUT' });
+    toastOk('User ' + (action === 'deactivate' ? 'deactivated' : 'reactivated'));
+    document.getElementById('user-overlay').classList.remove('show');
+    await loadUsers();
+  } catch (err) {
+    toastErr(err.message);
+  }
+});
+
+document.getElementById('delete-user-btn').addEventListener('click', async () => {
+  if (!editingUserId) return;
+  const u = allUsers.find(x => x.id === editingUserId);
+  if (!confirm('Permanently delete user "' + (u ? u.username : '') + '"? This cannot be undone.')) return;
+  try {
+    await api('/api/users/' + editingUserId, { method: 'DELETE' });
+    toastOk('User deleted');
+    document.getElementById('user-overlay').classList.remove('show');
+    await loadUsers();
+  } catch (err) {
+    toastErr(err.message);
+  }
+});
+
+// hook into sidebar click for users
+document.querySelectorAll('.nav-item').forEach(btn => {
+  if (btn.dataset.view === 'users') {
+    btn.addEventListener('click', () => { loadUsers(); });
+  }
+});
+loadCompanies().then(renderCompanyList).catch(() => {});
+
 // --- Low-stock bell ---
 function renderInventoryChart() {
   const container = document.getElementById('inventory-chart');
@@ -1914,6 +2312,28 @@ function renderLowStock() {
   }
 }
 
+document.getElementById('login-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const u = document.getElementById('login-username').value.trim();
+  const p = document.getElementById('login-password').value;
+  const errBox = document.getElementById('login-error');
+  const btn = document.getElementById('login-submit');
+  errBox.style.display = 'none';
+  btn.disabled = true; btn.textContent = 'Signing in...';
+  try {
+    await doLogin(u, p);
+    showApp();
+    await loadAll();
+    await loadSupplierBills();
+  } catch (err) {
+    errBox.textContent = err.message || 'Login failed.';
+    errBox.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Sign in';
+  }
+});
+
+document.getElementById('logout-btn').addEventListener('click', doLogout);
 let pendingImportFile = null;
 
 $('#import-pdf-btn').addEventListener('click', () => $('#import-pdf-file').click());
@@ -2248,9 +2668,14 @@ document.querySelectorAll('.nav-item').forEach(btn => {
     });
   }
 });
-loadAll();
-loadSupplierBills();
-initClientSearch();
+(async function boot() {
+  const ok = await checkAuth();
+  if (ok) {
+    await loadAll();
+    await loadSupplierBills();
+  }
+  initClientSearch();
+})();
 </script>
 </body>
 </html>
