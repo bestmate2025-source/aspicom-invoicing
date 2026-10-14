@@ -1774,7 +1774,9 @@ function fillCompanyForm() {
 async function uploadImage(file, endpoint) {
   const fd = new FormData();
   fd.append('file', file);
-  const res = await fetch(`${API_URL}${endpoint}`, { method: 'POST', body: fd });
+  const headers = {};
+  if (authToken) headers['Authorization'] = 'Bearer ' + authToken;
+  const res = await fetch(`${API_URL}${endpoint}`, { method: 'POST', body: fd, headers });
   const body = await res.json().catch(() => ({}));
   if (!res.ok || body.error) throw new Error(body.message || `HTTP ${res.status}`);
   return body.data;
@@ -2348,7 +2350,8 @@ $('#import-pdf-file').addEventListener('change', async (e) => {
 
   try {
     toast('Parsing PDF…', 'info', 2000);
-    const res = await fetch(`${API_URL}/api/parse-pdf`, { method: 'POST', body: fd });
+    const _h = {}; if (authToken) _h['Authorization'] = 'Bearer ' + authToken;
+    const res = await fetch(`${API_URL}/api/parse-pdf`, { method: 'POST', body: fd, headers: _h });
     const body = await res.json();
     if (!res.ok || body.error) throw new Error(body.message || `HTTP ${res.status}`);
     renderImportPreview(body.data);
@@ -2392,7 +2395,8 @@ $('#confirm-import-btn').addEventListener('click', async () => {
   fd.append('file', pendingImportFile);
   try {
     toast('Importing…', 'info', 2000);
-    const res = await fetch(`${API_URL}/api/import-pdf`, { method: 'POST', body: fd });
+    const _h2 = {}; if (authToken) _h2['Authorization'] = 'Bearer ' + authToken;
+    const res = await fetch(`${API_URL}/api/import-pdf`, { method: 'POST', body: fd, headers: _h2 });
     const body = await res.json();
     if (!res.ok || body.error) throw new Error(body.message || `HTTP ${res.status}`);
     if (body.message === 'duplicate') {
