@@ -751,13 +751,46 @@ tbody tr:hover{background:var(--pine-soft);}
       <div class="field"><label>Default unit price</label><input type="number" step="0.01" min="0" id="ii-price"></div>
       <div class="grid2">
         <div class="field"><label>Par level</label><input type="number" step="1" min="0" id="ii-inventory" value="0"></div>
-        <div class="field"><label>Current balance</label><input type="number" step="1" min="0" id="ii-balance" value="0"></div>
+        <div class="field"><label>Current balance</label><div id="ii-balance-note" style="padding:9px 0; font-size:14px; color:var(--sub);">0</div></div>
       </div>
       <div class="modal-actions">
         <button type="button" class="btn ghost" id="delete-inv-item-btn" style="display:none; color:var(--danger); border-color:var(--danger);">Delete</button>
         <div class="right">
+          <button type="button" class="btn ghost" id="adjust-stock-btn" style="display:none; color:var(--pine); border-color:var(--pine);">Adjust stock</button>
           <button type="button" class="btn ghost" id="cancel-inv-item-btn">Cancel</button>
           <button type="submit" class="btn">Save</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="overlay" id="adjust-stock-overlay">
+  <div class="modal" style="max-width:420px;">
+    <h2 id="adj-title">Adjust Stock</h2>
+    <form id="adjust-stock-form" autocomplete="off">
+      <div id="adj-current" style="font-size:13px; color:var(--sub); margin-bottom:12px;"></div>
+      <div class="field"><label>Reason</label>
+        <select id="adj-reason">
+          <option value="stock_in">Stock In</option>
+          <option value="stock_out">Stock Out</option>
+          <option value="damage">Damage</option>
+          <option value="expiry">Expiry</option>
+          <option value="return">Return</option>
+          <option value="rtv">RTV</option>
+          <option value="correction">Correction</option>
+        </select>
+      </div>
+      <div class="field"><label>Quantity change</label>
+        <input type="number" id="adj-qty" step="0.01" placeholder="e.g. 10 or -5">
+        <small id="adj-hint" style="display:block; margin-top:4px; font-size:12px; color:var(--sub);">Positive to add, negative to remove</small>
+      </div>
+      <div class="field"><label>Notes</label><textarea id="adj-notes" maxlength="1000" placeholder="Optional"></textarea></div>
+      <div class="modal-actions">
+        <div></div>
+        <div class="right">
+          <button type="button" class="btn ghost" id="adj-cancel-btn">Cancel</button>
+          <button type="submit" class="btn" id="adj-save-btn">Save</button>
         </div>
       </div>
     </form>
@@ -1792,11 +1825,12 @@ function openInvItemModal(id) {
   const it = id ? inventory.find(i => i.id === id) : null;
   $('#inv-item-title').textContent = it ? 'Edit product' : 'Add product';
   $('#delete-inv-item-btn').style.display = it ? 'inline-block' : 'none';
+  $('#adjust-stock-btn').style.display = (it && isAdmin()) ? 'inline-block' : 'none';
   $('#ii-name').value = it ? it.product : '';
   $('#ii-brand').value = it ? (it.brand || '') : '';
   $('#ii-price').value = it ? (it.price || '') : '';
   $('#ii-inventory').value = it ? (it.par_level || 0) : 0;
-  $('#ii-balance').value = it ? (it.balance || 0) : 0;
+  $('#ii-balance-note').textContent = it ? ((it.balance || 0) + '  (use Adjust stock to change it)') : '0  (save the product first, then use Adjust stock)';
   $('#inv-item-overlay').classList.add('show');
 }
 
@@ -1810,7 +1844,6 @@ $('#inv-item-form').addEventListener('submit', async (e) => {
     brand: $('#ii-brand').value.trim() || null,
     price: parseFloat($('#ii-price').value) || 0,
     par_level: parseFloat($('#ii-inventory').value) || 0,
-    balance: parseFloat($('#ii-balance').value) || 0,
   };
   if (!data.product) return;
   try {
@@ -2810,6 +2843,85 @@ async function toggleSupplierActive(id) {
             });
         }
     });
+})();
+
+// ==========================================================
+// ADJUST STOCK (ERP Phase 2)
+// ==========================================================
+const ADJ_ADD_REASONS = ['stock_in', 'return'];
+const ADJ_REMOVE_REASONS = ['stock_out', 'damage', 'expiry', 'rtv'];
+let adjustingItemId = null;
+
+function updateAdjustHint() {
+  const reason = $('#adj-reason').value;
+  let msg = 'Positive to add, negative to remove';
+  if (ADJ_ADD_REASONS.indexOf(reason) !== -1) msg = 'Enter a positive number, for example 10';
+  else if (ADJ_REMOVE_REASONS.indexOf(reason) !== -1) msg = 'Enter a negative number, for example -5';
+  $('#adj-hint').textContent = msg;
+}
+
+function openAdjustStockModal() {
+  if (!isAdmin()) return;
+  const id = editingInvItemId;
+  const it = id ? inventory.find(i => i.id === id) : null;
+  if (!it) { toastErr('Save the product first, then adjust its stock'); return; }
+  adjustingItemId = id;
+  $('#adj-title').textContent = 'Adjust Stock: ' + it.product;
+  $('#adj-current').textContent = 'Current balance: ' + (it.balance || 0);
+  $('#adj-reason').value = 'stock_in';
+  $('#adj-qty').value = '';
+  $('#adj-notes').value = '';
+  updateAdjustHint();
+  $('#inv-item-overlay').classList.remove('show');
+  $('#adjust-stock-overlay').classList.add('show');
+}
+
+function closeAdjustStockModal() {
+  $('#adjust-stock-overlay').classList.remove('show');
+  adjustingItemId = null;
+}
+
+async function submitAdjustStock(e) {
+  e.preventDefault();
+  if (!isAdmin() || !adjustingItemId) return;
+  const reason = $('#adj-reason').value;
+  const qty = parseFloat($('#adj-qty').value);
+  const notes = $('#adj-notes').value.trim();
+  if (!isFinite(qty) || qty === 0) { toastErr('Enter a quantity that is not 0'); return; }
+  if (ADJ_ADD_REASONS.indexOf(reason) !== -1 && qty < 0) { toastErr('This reason needs a positive number'); return; }
+  if (ADJ_REMOVE_REASONS.indexOf(reason) !== -1 && qty > 0) { toastErr('This reason needs a negative number'); return; }
+
+  const it = inventory.find(i => i.id === adjustingItemId);
+  const before = it ? (Number(it.balance) || 0) : null;
+  const saveBtn = $('#adj-save-btn');
+  saveBtn.disabled = true;
+  try {
+    const updated = await api('/api/inventory/' + adjustingItemId + '/adjust', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ change_qty: qty, reason: reason, notes: notes || null }),
+    });
+    toastOk('Stock adjusted successfully');
+    const after = updated ? parseFloat(updated.balance) : NaN;
+    if (before !== null && isFinite(after) && after > before + qty + 0.005) {
+      toast('Balance cannot go below 0, so it was set to 0', 'info', 5000);
+    }
+    closeAdjustStockModal();
+    await loadAll();
+  } catch (err) {
+    toastErr(err.message || 'Could not adjust stock');
+  } finally {
+    saveBtn.disabled = false;
+  }
+}
+
+(function wireAdjustStock() {
+  const byId = x => document.getElementById(x);
+  if (!byId('adjust-stock-btn') || !byId('adjust-stock-overlay')) return;
+  byId('adjust-stock-btn').addEventListener('click', openAdjustStockModal);
+  byId('adj-reason').addEventListener('change', updateAdjustHint);
+  byId('adjust-stock-form').addEventListener('submit', submitAdjustStock);
+  byId('adj-cancel-btn').addEventListener('click', closeAdjustStockModal);
 })();
 
 // --- Low-stock bell ---
