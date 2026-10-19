@@ -236,6 +236,8 @@ class ParsedInvoice(db.Model):
     )
 
     id = db.Column(db.Integer, primary_key=True)
+    # Soft link to suppliers.id (no foreign key on purpose: the bill stays if a supplier is deleted).
+    supplier_id = db.Column(db.Integer, nullable=True, index=True)
     source_pdf = db.Column(db.String(500), nullable=False)
     supplier_name = db.Column(db.String(255), index=True)
     header_trn = db.Column(db.String(50))
@@ -251,6 +253,7 @@ class ParsedInvoice(db.Model):
     def to_dict(self) -> dict:
         return {
             "id": self.id,
+            "supplier_id": self.supplier_id,
             "source_pdf": self.source_pdf,
             "supplier_name": self.supplier_name,
             "header_trn": self.header_trn,
@@ -320,7 +323,6 @@ class User(db.Model):
     role = db.Column(db.Enum("admin", "user", name="user_role"), nullable=False, default="user")
     is_active = db.Column(db.Boolean, nullable=False, default=True)
     is_root = db.Column(db.Boolean, nullable=False, default=False)
-    is_root = db.Column(db.Boolean, nullable=False, default=False)
     last_login = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
@@ -333,8 +335,97 @@ class User(db.Model):
             "email": self.email,
             "role": self.role,
             "is_root": bool(self.is_root),
-            "is_root": bool(self.is_root),
             "is_active": bool(self.is_active),
             "last_login": self.last_login.isoformat() if self.last_login else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
+
+
+class StockMovement(db.Model):
+    """One row per stock change. Never edited, never deleted — it is the stock history.
+
+    No foreign keys on purpose: the history must survive product / user deletions.
+    change_qty is the REAL change applied to the balance (negative = stock out).
+    """
+
+    __tablename__ = "stock_movements"
+
+    id = db.Column(db.Integer, primary_key=True)
+    inventory_id = db.Column(db.Integer, nullable=False, index=True)
+    product_name = db.Column(db.String(255), nullable=False)
+    change_qty = db.Column(db.Numeric(10, 2), nullable=False)
+    balance_after = db.Column(db.Numeric(10, 2), nullable=False)
+    reason = db.Column(db.Enum(
+        "initial", "invoice_created", "invoice_deleted",
+        "invoice_edited", "quotation_converted",
+        "stock_in", "stock_out", "damage", "expiry",
+        "return", "rtv", "correction",
+        name="stock_movement_reason"), nullable=False, index=True)
+    reference_id = db.Column(db.Integer, nullable=True, index=True)
+    reference_label = db.Column(db.String(255), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+    created_by = db.Column(db.Integer, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow,
+                           nullable=False, index=True)
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "inventory_id": self.inventory_id,
+            "product_name": self.product_name,
+            "change_qty": _dec(self.change_qty),
+            "balance_after": _dec(self.balance_after),
+            "reason": self.reason,
+            "reference_id": self.reference_id,
+            "reference_label": self.reference_label,
+            "notes": self.notes,
+            "created_by": self.created_by,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class Supplier(db.Model):
+    """A vendor we buy from. Parsed PDF bills link to it softly via parsed_invoices.supplier_id."""
+
+    __tablename__ = "suppliers"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), nullable=False, index=True)
+    trn = db.Column(db.String(50))
+    address = db.Column(db.Text)
+    po_box = db.Column(db.String(50))
+    email = db.Column(db.String(255))
+    phone = db.Column(db.String(50))
+    contact_person = db.Column(db.String(150))
+    payment_terms = db.Column(db.String(100))
+    lead_time_days = db.Column(db.Integer, nullable=True)
+    bank_name = db.Column(db.String(150))
+    bank_account = db.Column(db.String(100))
+    category = db.Column(db.String(100))
+    notes = db.Column(db.Text)
+    is_active = db.Column(db.Boolean, nullable=False, default=True, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    def to_dict(self, include_bank: bool = True) -> dict:
+        """include_bank=False leaves bank_name / bank_account OUT of the result entirely
+        (used for the read-only 'user' role, so they cannot see them even via the API)."""
+        data = {
+            "id": self.id,
+            "name": self.name,
+            "trn": self.trn,
+            "address": self.address,
+            "po_box": self.po_box,
+            "email": self.email,
+            "phone": self.phone,
+            "contact_person": self.contact_person,
+            "payment_terms": self.payment_terms,
+            "lead_time_days": self.lead_time_days,
+            "category": self.category,
+            "notes": self.notes,
+            "is_active": bool(self.is_active),
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+        if include_bank:
+            data["bank_name"] = self.bank_name
+            data["bank_account"] = self.bank_account
+        return data

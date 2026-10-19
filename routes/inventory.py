@@ -26,6 +26,7 @@ inventory_bp = Blueprint("inventory", __name__)
 
 EDITABLE_FIELDS = {"product", "brand", "price", "vat_percent", "par_level", "balance"}
 DECIMAL_FIELDS = {"price", "vat_percent", "par_level", "balance"}
+PUT_EDITABLE_FIELDS = {"product", "brand", "price", "vat_percent", "par_level"}  # no balance - use /adjust endpoint
 
 
 def _to_decimal(value) -> Decimal:
@@ -123,7 +124,7 @@ def update_inventory_item(item_id: int):
     if body is None or not isinstance(body, dict):
         return api_response(error="invalid_json", message="Request body must be a JSON object."), 400
 
-    unknown = set(body.keys()) - EDITABLE_FIELDS
+    unknown = set(body.keys()) - PUT_EDITABLE_FIELDS
     if unknown:
         return api_response(
             error="unknown_fields", message=f"Unrecognized field(s): {', '.join(sorted(unknown))}."

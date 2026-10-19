@@ -972,3 +972,344 @@ TEST PASSWORDS (change before production):
   usman  (user)       / PMAWP5AYIznPSahK
 
 NEXT: Deploy everything to production (see Deployment section)
+
+=========================================================
+PRODUCTION DEPLOYMENT (2026-10-10) — SUCCESS
+=========================================================
+
+AUTH + USER MANAGEMENT DEPLOYED TO PRODUCTION.
+
+Railway backend:  https://aspicom-invoicing-production.up.railway.app
+GitHub Pages:     https://bestmate2025-source.github.io/aspicom-invoicing/
+
+PRODUCTION DB SETUP DONE:
+  - users table created
+  - farhan (root admin) seeded
+  - usman (user) seeded
+
+PRODUCTION ENV VARS (Railway):
+  JWT_SECRET    = (production secret — separate from local)
+  AUTH_ENABLED  = true
+
+PRODUCTION PASSWORDS (KEEP SECURE):
+  farhan (root) / 5XVoEHpKg_9hsa4T
+  usman (user)  / RIH5t-Zmm8y-Apv6
+  (Different from local test passwords)
+
+LESSONS LEARNED:
+  - PyJWT must be in requirements.txt for Railway (was missing)
+  - Railway needs ~2 min after push to redeploy
+  - Railway Agent tried to auto-modify DB — don't let it
+  - Always test backend with curl before frontend in production
+
+DEPLOY FLOW (now includes requirements.txt):
+  1. Copy frontend ? docs
+  2. Swap API_URL to Railway in docs
+  3. Verify URL with Select-String
+  4. Node syntax check on docs
+  5. git status
+  6. Delete .bak files + git add
+  7. git commit + git push
+  8. Wait 2 min ? test production login
+
+NEXT STEPS: See "PENDING FEATURES" section
+
+=========================================================
+ERP EXPANSION — SoftSolution ChepTech IMS (2026-10-16)
+=========================================================
+
+PRODUCT NAME
+  SoftSolution ChepTech — Inventory Management System
+  (Aspicom LLC is the first tenant/company using it)
+
+VISION
+  Evolve the invoicing system into a full ERP covering:
+    - Inventory Control & Operations
+    - Purchasing & Procurement
+    - Sales & Order Fulfillment
+    - Analytics, Reporting & Forecasting
+    - User Management, Security, Integrations
+
+=========================================================
+MASTER ROADMAP — 7 PHASES
+=========================================================
+
+PHASE 0 — COMPLETE
+  Invoices, quotations, payments, clients, companies, users,
+  auth, basic inventory, low-stock alerts, audit trail.
+
+PHASE 1 — STOCK MOVEMENT FOUNDATION (in progress)
+  - New stock_movements table
+  - Every invoice create/delete/edit logs movements
+  - Revert stock on invoice delete
+  - Adjust stock on invoice edit
+  - Baseline "initial" movement backfill
+  - Per-product movements view + global movements view
+  - Admin-only adjustment permission
+  - DELIVERABLE: full audit trail of stock changes
+
+PHASE 2 — MANUAL ADJUSTMENTS
+  - Stock in / stock out / damage / expiry / return / correction
+  - Modal to adjust stock with reason
+  - Each adjustment creates a movement
+
+PHASE 3 — SUPPLIER MANAGEMENT
+  - suppliers table (name, TRN, address, contact, terms, lead time)
+  - CRUD endpoints + Suppliers sidebar tab
+  - Link imported PDF bills to suppliers
+
+PHASE 4 — PURCHASE ORDERS + GRN
+  - purchase_orders, purchase_order_items, goods_received_notes
+  - PO lifecycle: Draft ? Sent ? Partial ? Closed
+  - GRN receiving ? adds stock + creates stock_in movement
+  - Optional: PDF PO generation
+
+PHASE 5 — REPORTS
+  - Turnover (fast/slow/dead stock)
+  - Stock aging
+  - Inventory valuation (Weighted Average Cost)
+  - Movement summary (daily/weekly/monthly)
+  - Reports sidebar tab
+
+PHASE 6 — XERO INTEGRATION
+  - OAuth flow
+  - Push invoices + payments to Xero
+  - Sync contacts and chart of accounts
+  - Store xero_contact_id, xero_invoice_id mappings
+
+PHASE 7 — ADVANCED (later)
+  - Auto-reorder (draft POs below par)
+  - Cycle counts / physical audits
+  - Multi-role RBAC (manager, warehouse, accountant, auditor)
+  - Batch / expiry tracking
+  - Barcode scanning (mobile web)
+
+=========================================================
+PHASE 1 — DETAILED SPEC (Stock Movement Foundation)
+=========================================================
+
+DELIVERABLE
+  Every stock change is logged with full context.
+
+MOVEMENT TABLE: stock_movements
+  id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY
+  inventory_id    INT UNSIGNED NOT NULL (FK -> inventory.id, RESTRICT)
+  product_name    VARCHAR(255) NOT NULL (snapshot)
+  change_qty      DECIMAL(10,2) NOT NULL (positive = in, negative = out)
+  balance_after   DECIMAL(10,2) NOT NULL (snapshot)
+  reason          ENUM('initial','invoice_created','invoice_deleted',
+                       'invoice_edited','quotation_converted',
+                       'stock_in','stock_out','damage','expiry',
+                       'return','rtv','correction') NOT NULL
+  reference_id    INT UNSIGNED NULL (invoice_id if applicable)
+  reference_label VARCHAR(255) NULL (invoice number)
+  notes           TEXT NULL
+  created_by      INT UNSIGNED NULL (users.id)
+  created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+
+  INDEX on inventory_id, reason, created_at, reference_id
+
+GRANULARITY
+  Per line item. Invoice with 5 products = 5 movement rows.
+
+LOGGING TRIGGERS
+  1. Invoice created (invoice only, not quotation)
+       ? for each line: create movement (reason=invoice_created, qty=-qty)
+  2. Invoice deleted (invoice only)
+       ? for each line: create movement (reason=invoice_deleted, qty=+qty)
+       ? also: restore inventory.balance
+  3. Invoice edited (qty change on line items)
+       ? for each changed line: create movement (reason=invoice_edited)
+       ? also: adjust inventory.balance by the delta
+  4. Quotation converted to invoice
+       ? for each line: create movement (reason=quotation_converted, qty=-qty)
+  5. Manual adjustments (Phase 2, but endpoint stubbed here)
+
+BACKFILL (one-time)
+  For every existing inventory row:
+    INSERT movement (reason='initial', change_qty=balance, balance_after=balance)
+
+ENDPOINTS
+  GET  /api/inventory/<id>/movements
+       Returns all movements for one product.
+       Query: from, to (date), reason (filter), limit (default 100)
+
+  GET  /api/stock-movements
+       Global feed. Filters: from, to, reason, inventory_id, search (product name)
+       Pagination: limit + offset. Default limit 100.
+
+  POST /api/inventory/<id>/adjust   (Phase 2, but stub now)
+       Body: { change_qty, reason, notes }
+       Admin only. Creates movement + adjusts balance.
+
+PERMISSIONS
+  - View movements: any authenticated user
+  - Adjust stock: admin only (Phase 2)
+
+FRONTEND
+  1. Inventory row ? "Movements" button (opens modal showing that product's history)
+  2. New sidebar item "Movements" between Inventory and Supplier Bills
+     - Global table: Date | Product | Change | Balance After | Reason | Reference | By
+     - Filters: date range, reason, product search
+  3. Colored reason pills (e.g. green for stock_in, red for stock_out)
+
+=========================================================
+HOW TO DEVELOP ERP PHASES (workflow)
+=========================================================
+
+The AI assistant (this chat) coordinates. Claude (long-context)
+writes the code for one phase at a time.
+
+STANDARD PHASE WORKFLOW:
+  1. Make a backup (before starting)
+  2. AI writes a detailed Claude prompt for the phase
+  3. User pastes prompt into Claude
+  4. Claude delivers: full backend files + surgical frontend patches
+  5. User brings Claude output back to this chat
+  6. AI verifies the code + patches before applying
+  7. User applies patches ? tests locally
+  8. AI guides deployment to production
+  9. Update this handoff doc
+
+BEFORE EACH PHASE:
+  - Take a full backup (code + DB + uploads + .env)
+  - Save as: backups/invoice<DD-MM-YYYY>/
+
+BACKUP LOCATIONS (existing)
+  - backups/invoice16-10-2026/  (pre-Phase-1 snapshot)
+  - Desktop copy: C:\Users\farha\Desktop\invoice16-10-2026-backup
+
+=========================================================
+BUG FIXES LOG
+=========================================================
+
+2026-10-10 — Production auth deploy:
+  - PyJWT was missing from requirements.txt ? 502 crash ? fixed
+  - Railway redeploys take ~2 min after push
+
+2026-10-14 — Production file uploads returning 401:
+  - uploadImage() (logo/stamp) used raw fetch ? no auth header
+  - PDF parse + PDF import used raw fetch ? no auth header
+  - Fix: manually added Authorization header to all 3
+
+LESSON: Whenever raw fetch() is used instead of the api()
+helper, ALWAYS add the Authorization header manually:
+  const headers = {};
+  if (authToken) headers['Authorization'] = 'Bearer ' + authToken;
+
+=========================================================
+KEY DATES
+=========================================================
+
+2026-10-03  Initial schema + multi-company
+2026-10-05  Multi-currency (USD + AED)
+2026-10-08  Statements + VAT Report
+2026-10-09  Auth (login, JWT, roles)
+2026-10-10  User management + production deploy
+2026-10-14  Upload auth fix
+2026-10-16  ERP expansion begins — Phase 1 kickoff
+            Backup: invoice16-10-2026
+
+=========================================================
+NEXT IMMEDIATE STEP
+=========================================================
+
+Building PHASE 1 — Stock Movement Foundation.
+
+If picking up fresh:
+  1. Read this entire document
+  2. Check git status: git log -1
+  3. Check backups exist: Test-Path backups/invoice16-10-2026
+  4. Ask Farhan: "Ready to build Phase 1, or start with a 
+     different task?"
+
+=========================================================
+END OF ERP ADDENDUM
+=========================================================
+
+=========================================================
+PHASE 1 STAGE A COMPLETE (2026-10-16)
+=========================================================
+
+DONE — Stock Movement Foundation (backend):
+  - stock_movements table created
+  - StockMovement model added to models.py
+  - utils/stock_movements.py (log_movement, find_inventory_by_name, 
+    net_logged_change_for_invoice)
+  - routes/stock_movements.py (2 read-only endpoints)
+  - routes/invoices.py hooks: create/edit/delete/convert-to-invoice
+  - scripts/migrate_stock_movements.py
+  - scripts/backfill_movements.py (5 initial rows created)
+
+VERIFIED END-TO-END:
+  - Create invoice -> -2.00 movement, balance drops
+  - Edit qty 2->5    -> -3.00 movement, notes "Qty changed 2.00 -> 5"
+  - Delete invoice   -> +5.00 movement, balance fully restored
+
+NEXT: STAGE B (frontend)
+  - Movements sidebar tab (between Inventory and Supplier Bills)
+  - Global movements table with date/reason/product filters
+  - "Movements" button on each inventory row
+  - Movements modal
+
+CLAUDE FILES RECEIVED AND APPLIED:
+  models.py, routes/invoices.py, app.py,
+  utils/stock_movements.py, routes/stock_movements.py,
+  scripts/migrate_stock_movements.py, scripts/backfill_movements.py
+
+NEW FILE LOCATIONS:
+  utils/stock_movements.py
+  routes/stock_movements.py
+  scripts/migrate_stock_movements.py
+  scripts/backfill_movements.py
+
+ENDPOINTS LIVE:
+  GET /api/stock-movements (filters: from, to, reason, inventory_id,
+                             search, limit, offset)
+  GET /api/inventory/<id>/movements (filters: from, to, reason, limit)
+
+=========================================================
+END OF PHASE 1 STAGE A
+=========================================================
+=========================================================
+PHASE 3 STAGE A COMPLETE (2026-10-17)
+=========================================================
+
+DONE — Supplier Management Backend:
+  - suppliers table created (15 columns)
+  - ParsedInvoice.supplier_id added (soft link)
+  - routes/suppliers.py with 7 endpoints
+  - POST /api/suppliers/from-parsed for PDF integration
+  - Seed script created 1 supplier from parsed bills
+  - Bank fields REMOVED from JSON for non-admin role
+  - Delete protection: 409 if bills linked
+
+NEW FILES:
+  routes/suppliers.py
+  scripts/migrate_suppliers.py
+  scripts/seed_suppliers_from_parsed.py
+
+ENDPOINTS:
+  GET    /api/suppliers
+  GET    /api/suppliers/<id>
+  POST   /api/suppliers
+  PUT    /api/suppliers/<id>
+  DELETE /api/suppliers/<id>
+  POST   /api/suppliers/<id>/deactivate
+  POST   /api/suppliers/<id>/activate
+  POST   /api/suppliers/from-parsed
+
+VERIFIED (all pass):
+  - Seed creates 1 supplier from NMC bill
+  - Bank visible to admin, absent from user role JSON
+  - Duplicate name (case-insensitive) ? 409
+  - Deactivate/reactivate works
+  - Delete blocked for supplier with linked bills ? 409
+  - Search by name/TRN works
+  - from-parsed endpoint works
+
+NEXT: STAGE B (frontend Suppliers tab)
+
+=========================================================
+END OF PHASE 3 STAGE A
+=========================================================
