@@ -8,20 +8,20 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#F6F5F2; --surface:#FFFFFF; --ink:#181A1B; --sub:#6B6B65;
-  --line:#E4E1DA; --pine:#0B5D52; --pine-soft:#E6EFEC;
+  --bg:#F2F4F7; --surface:#FFFFFF; --ink:#1A1C1E; --sub:#6B7280;
+  --line:#E0E0E0; --pine:#2A9D61; --pine-soft:#E8F5E9;
   --amber:#B8722E; --amber-soft:#F5E9DC; --grey:#9A968C; --grey-soft:#EFEEEA;
-  --danger:#B0473F; --success:#0B5D52;
-  --shadow-sm: 0 1px 2px rgba(20,20,18,0.04);
-  --shadow-md: 0 4px 12px rgba(20,20,18,0.06);
+  --danger:#EA4335; --success:#2A9D61;
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 20px rgba(0,0,0,0.05);
   --shadow-lg: 0 12px 32px rgba(20,20,18,0.12);
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --bg:#15171A; --surface:#1D2023; --ink:#EDEBE5; --sub:#9A968C;
-    --line:#2C2F33; --pine:#3FA593; --pine-soft:#1B2B27;
+    --bg:#121417; --surface:#1B1E22; --ink:#ECEEF0; --sub:#9AA0A6;
+    --line:#2B2F34; --pine:#4CC38A; --pine-soft:#183026;
     --amber:#D89A5A; --amber-soft:#2E2417; --grey:#7D7A72; --grey-soft:#25282B;
-    --danger:#D3766D; --success:#3FA593;
+    --danger:#F0746A; --success:#4CC38A;
     --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
     --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
     --shadow-lg: 0 12px 32px rgba(0,0,0,0.5);
@@ -34,21 +34,21 @@ body{margin:0; height:100%; background:var(--bg); color:var(--ink); font-family:
 .brand{font-family:'Fraunces',serif; font-size:22px; font-weight:600; letter-spacing:-0.02em;}
 .brand span{color:var(--pine);}
 nav{display:flex; flex-direction:column; gap:2px;}
-.nav-item{padding:9px 10px; border-radius:6px; font-size:14px; font-weight:500; color:var(--sub); cursor:pointer; border:none; background:none; text-align:left; font-family:inherit; width:100%; transition:background 0.15s, color 0.15s;}
+.nav-item{padding:9px 10px; border-radius:8px; font-size:14px; font-weight:500; color:var(--sub); cursor:pointer; border:none; background:none; text-align:left; font-family:inherit; width:100%; transition:background 0.15s, color 0.15s;}
 .nav-item:hover{background:var(--grey-soft); color:var(--ink);}
 .nav-item.active{background:var(--pine-soft); color:var(--pine);}
 main{flex:1; padding:32px 40px 32px; overflow-y:auto; overflow-x:hidden; height:100vh; box-sizing:border-box;}
 h1{font-family:'Fraunces',serif; font-size:28px; font-weight:500; margin:0 0 4px;}
 .lede{color:var(--sub); font-size:14px; margin:0 0 28px;}
 .stats{display:flex; gap:16px; margin-bottom:32px; flex-wrap:wrap;}
-.stat{background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:16px 20px; min-width:160px; flex:1; box-shadow:var(--shadow-sm); transition:box-shadow 0.15s, transform 0.15s;}
+.stat{background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:16px 20px; min-width:160px; flex:1; box-shadow:var(--shadow-sm); transition:box-shadow 0.15s, transform 0.15s;}
 .stat:hover{box-shadow:var(--shadow-md); transform:translateY(-1px);}
 .stat-label{font-size:12px; color:var(--sub); font-weight:600; text-transform:uppercase; letter-spacing:0.04em;}
 .stat-value{font-family:'Fraunces',serif; font-size:30px; margin-top:4px;}
 .stat-value.amber{color:var(--amber);} .stat-value.pine{color:var(--pine);}
 .stat.stat-c-amber{background:#F5E9DC; border-color:#E8D4BC;} .stat.stat-c-amber .stat-value{color:#B8722E;}
-.stat.stat-c-red{background:#F5D6D3; border-color:#E8BFBB;} .stat.stat-c-red .stat-value{color:#B0473F;}
-.stat.stat-c-pine{background:#E6EFEC; border-color:#C9DED7;} .stat.stat-c-pine .stat-value{color:#0B5D52;}
+.stat.stat-c-red{background:#FDECEA; border-color:#F6CFCB;} .stat.stat-c-red .stat-value{color:#EA4335;}
+.stat.stat-c-pine{background:#E8F5E9; border-color:#CDE8D2;} .stat.stat-c-pine .stat-value{color:#2A9D61;}
 .stat.stat-c-blue{background:#DDE7F0; border-color:#C0D0E2;} .stat.stat-c-blue .stat-value{color:#2E5F8A;}
 .stat.stat-c-amber-dark{background:#F5E1C8; border-color:#E8C9A0;} .stat.stat-c-amber-dark .stat-value{color:#8C5522;}
 .toolbar{display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; gap:12px; flex-wrap:wrap;}
@@ -56,7 +56,7 @@ h1{font-family:'Fraunces',serif; font-size:28px; font-weight:500; margin:0 0 4px
 .tab{padding:6px 12px; border-radius:16px; font-size:13px; font-weight:500; border:1px solid var(--line); background:var(--surface); color:var(--sub); cursor:pointer; transition:all 0.15s;}
 .tab:hover{border-color:var(--ink);}
 .tab.active{background:var(--ink); color:var(--bg); border-color:var(--ink);}
-.btn{padding:9px 16px; border-radius:6px; border:none; background:var(--pine); color:#fff; font-family:inherit; font-weight:600; font-size:14px; cursor:pointer; transition:transform 0.1s, opacity 0.15s, box-shadow 0.15s; box-shadow:var(--shadow-sm);}
+.btn{padding:9px 16px; border-radius:8px; border:none; background:var(--pine); color:#fff; font-family:inherit; font-weight:600; font-size:14px; cursor:pointer; transition:transform 0.1s, opacity 0.15s, box-shadow 0.15s; box-shadow:var(--shadow-sm);}
 .btn:hover{opacity:0.92; box-shadow:var(--shadow-md);}
 .btn:active{transform:translateY(1px);}
 .btn:disabled{opacity:0.5; cursor:not-allowed;}
@@ -64,7 +64,7 @@ h1{font-family:'Fraunces',serif; font-size:28px; font-weight:500; margin:0 0 4px
 .btn.ghost:hover{background:var(--grey-soft);}
 .btn.sm{padding:5px 10px; font-size:12px;}
 .btn.danger{background:var(--danger);}
-table{width:100%; border-collapse:collapse; background:var(--surface); border:1px solid var(--line); border-radius:10px; overflow:hidden; box-shadow:var(--shadow-sm);}
+table{width:100%; border-collapse:collapse; background:var(--surface); border:1px solid var(--line); border-radius:12px; overflow:hidden; box-shadow:var(--shadow-sm);}
 thead th{text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:var(--sub); font-weight:600; padding:10px 14px; border-bottom:1px solid var(--line);}
 tbody tr{border-bottom:1px solid var(--line); cursor:pointer; transition:background 0.1s;}
 tbody tr:last-child{border-bottom:none;}
@@ -83,19 +83,19 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
 .overlay{position:fixed; inset:0; background:rgba(20,20,18,0.5); display:none; align-items:flex-start; justify-content:center; z-index:10; padding:24px 16px; overflow-y:auto; animation:fadeIn 0.15s ease-out;}
 .overlay.show{display:flex;}
 @keyframes fadeIn{from{opacity:0;} to{opacity:1;}}
-.modal{background:var(--surface); border-radius:12px; padding:26px; width:100%; max-width:560px; margin:auto; box-shadow:var(--shadow-lg); animation:slideUp 0.2s ease-out; max-height:calc(100vh - 48px); overflow-y:auto;}
+.modal{background:var(--surface); border-radius:16px; padding:26px; width:100%; max-width:560px; margin:auto; box-shadow:var(--shadow-lg); animation:slideUp 0.2s ease-out; max-height:calc(100vh - 48px); overflow-y:auto;}
 @keyframes slideUp{from{opacity:0; transform:translateY(12px);} to{opacity:1; transform:translateY(0);}}
 .modal h2{font-family:'Fraunces',serif; font-weight:500; font-size:20px; margin:0 0 18px;}
 .field{margin-bottom:14px;}
 .field label{display:block; font-size:12px; font-weight:600; color:var(--sub); margin-bottom:5px;}
-.field input, .field select, .field textarea{width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:6px; font-family:inherit; font-size:14px; background:var(--bg); color:var(--ink); transition:border-color 0.15s, box-shadow 0.15s;}
+.field input, .field select, .field textarea{width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:14px; background:var(--bg); color:var(--ink); transition:border-color 0.15s, box-shadow 0.15s;}
 .field input:focus, .field select:focus, .field textarea:focus{outline:none; border-color:var(--pine); box-shadow:0 0 0 3px var(--pine-soft);}
 .field textarea{resize:vertical; min-height:50px;}
 .grid2{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
 .modal-actions{display:flex; justify-content:space-between; margin-top:20px; gap:10px;}
 .modal-actions .right{display:flex; gap:8px;}
 .clients-list{display:flex; flex-direction:column; gap:8px;}
-.client-row{background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:14px 18px; display:flex; justify-content:space-between; align-items:flex-start; gap:12px; box-shadow:var(--shadow-sm); transition:box-shadow 0.15s, transform 0.15s;}
+.client-row{background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:14px 18px; display:flex; justify-content:space-between; align-items:flex-start; gap:12px; box-shadow:var(--shadow-sm); transition:box-shadow 0.15s, transform 0.15s;}
 .client-row:hover{box-shadow:var(--shadow-md); transform:translateY(-1px);}
 .client-row .cname{font-weight:600; font-size:14px;}
 .client-row .cmeta{font-size:13px; color:var(--sub);}
@@ -184,6 +184,33 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
   .grid2{grid-template-columns:1fr;}
   .items-row, .items-head{grid-template-columns:1fr;}
 }
+/* R2 - EtSales look */
+.nav-item{border-radius:12px;}
+.nav-item.active{font-weight:600;}
+thead th{padding-top:12px; padding-bottom:12px;}
+tbody tr:hover{background:var(--pine-soft);}
+.status-pill{border-radius:999px; padding:3px 12px;}
+.overlay{backdrop-filter:blur(2px);}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]) body{background:linear-gradient(135deg,#E1EEE6 0%,#F2F4F7 55%,#E4F0E8 100%); background-attachment:fixed;}
+  :root:not([data-theme="dark"]) .rail{background:rgba(255,255,255,0.6); backdrop-filter:blur(10px); border-right:1px solid rgba(0,0,0,0.05);}
+  :root:not([data-theme="dark"]) .nav-item.active{background:#FFFFFF; color:var(--pine); box-shadow:var(--shadow-md);}
+  :root:not([data-theme="dark"]) thead th{background:#EAF5EE;}
+  :root:not([data-theme="dark"]) tbody tr:nth-child(even){background:rgba(42,157,97,0.04);}
+  :root:not([data-theme="dark"]) tbody tr:nth-child(even):hover{background:var(--pine-soft);}
+}
+/* R3 - topbar */
+#low-stock-bell{order:2; border-radius:12px !important;}
+#topbar-title{order:0; margin:0 auto 0 0; font-family:'Fraunces',serif; font-size:26px; font-weight:500;}
+#global-search{order:1; width:260px; max-width:40vw; padding:9px 16px; border:1px solid var(--line); border-radius:999px; background:var(--surface); color:var(--ink); font-family:inherit; font-size:13px;}
+#global-search:focus{outline:none; border-color:var(--pine); box-shadow:0 0 0 3px var(--pine-soft);}
+#topbar-user{order:3; display:flex; align-items:center; gap:10px;}
+#topbar-avatar{width:36px; height:36px; border-radius:50%; background:var(--pine); color:#fff; font-weight:700; display:flex; align-items:center; justify-content:center;}
+#topbar-name{font-size:13px; font-weight:600; line-height:1.2;}
+#topbar-role{font-size:11px; color:var(--sub); text-transform:capitalize;}
+.stat{padding:18px 20px;}
+.stat-value{font-family:'Inter',sans-serif; font-weight:700; font-size:28px; letter-spacing:-0.02em;}
+@media (max-width:640px){ #topbar-title,#topbar-name,#topbar-role{display:none;} #global-search{width:100%; max-width:none;} }
 </style>
 </head>
 <body>
@@ -199,7 +226,9 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
     <button class="nav-item" data-view="statements">Statements</button>
     <button class="nav-item" data-view="vat-report">VAT Report</button>
     <button class="nav-item" data-view="clients">Clients</button>
+    <button class="nav-item" data-view="suppliers">Suppliers</button>
     <button class="nav-item" data-view="inventory">Inventory</button>
+    <button class="nav-item" data-view="movements">Movements</button>
     <button class="nav-item" data-view="supplier">Supplier Bills</button>
     <button class="nav-item" data-view="company">Company</button>
     <button class="nav-item" data-view="users" id="nav-users" style="display:none;">Users</button>
@@ -213,7 +242,10 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
 </div>
 
 <main>
-  <div id="low-stock-bar" style="display:flex; justify-content:flex-end; margin-bottom:14px; position:relative;">
+  <div id="low-stock-bar" style="display:flex; justify-content:flex-end; align-items:center; gap:12px; margin-bottom:18px; position:relative;">
+<h2 id="topbar-title">Dashboard</h2>
+<input id="global-search" type="search" placeholder="Search this page..." autocomplete="off">
+<div id="topbar-user"><div id="topbar-avatar">A</div><div><div id="topbar-name"></div><div id="topbar-role"></div></div></div>
     <button id="low-stock-bell" type="button" aria-label="Low stock alerts" style="position:relative; background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:8px 12px; cursor:pointer; font-size:16px; color:var(--ink); display:flex; align-items:center; gap:6px;">
       <span>&#128276;</span>
       <span id="low-stock-count" style="display:none; background:var(--amber); color:#fff; font-size:11px; font-weight:700; padding:2px 7px; border-radius:10px; min-width:18px; text-align:center;">0</span>
@@ -327,6 +359,68 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
     </div>
 
   </div>
+  <div id="view-suppliers" style="display:none;">
+    <h1>Suppliers</h1>
+    <p class="lede">Manage your vendors and suppliers.</p>
+    <div class="toolbar" style="flex-wrap:wrap; gap:8px; margin-bottom:16px;">
+      <button type="button" class="btn" id="new-supplier-btn">+ Add supplier</button>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <input type="text" id="sup-search" placeholder="Search by name or TRN..." style="padding:5px 10px; border:1px solid var(--line); border-radius:5px; background:var(--bg); color:var(--ink); font-family:inherit; min-width:220px;">
+        <select id="sup-filter" style="padding:5px 8px; border:1px solid var(--line); border-radius:5px; background:var(--bg); color:var(--ink); font-family:inherit;">
+          <option value="all">All</option>
+          <option value="active">Active only</option>
+          <option value="inactive">Inactive only</option>
+        </select>
+      </div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th><th>TRN</th><th>Contact</th><th>Phone</th><th>Payment terms</th><th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="suppliers-rows"><tr><td colspan="6" class="empty">No suppliers yet. Click + Add supplier to start.</td></tr></tbody>
+    </table>
+  </div>
+
+  <div id="view-movements" style="display:none;">
+    <h1>Stock Movements</h1>
+    <p class="lede">Every stock change, logged automatically.</p>
+    <div class="toolbar" style="flex-wrap:wrap; gap:8px; margin-bottom:16px;">
+      <label style="font-size:13px;">From <input type="date" id="mov-from" style="padding:5px 8px; border:1px solid var(--line); border-radius:5px; background:var(--bg); color:var(--ink); font-family:inherit;"></label>
+      <label style="font-size:13px;">To <input type="date" id="mov-to" style="padding:5px 8px; border:1px solid var(--line); border-radius:5px; background:var(--bg); color:var(--ink); font-family:inherit;"></label>
+      <select id="mov-reason" style="padding:5px 8px; border:1px solid var(--line); border-radius:5px; background:var(--bg); color:var(--ink); font-family:inherit;">
+        <option value="">All reasons</option>
+        <option value="initial">Baseline</option>
+        <option value="invoice_created">Invoice Created</option>
+        <option value="invoice_deleted">Invoice Deleted</option>
+        <option value="invoice_edited">Invoice Edited</option>
+        <option value="quotation_converted">Quotation Converted</option>
+        <option value="stock_in">Stock In</option>
+        <option value="stock_out">Stock Out</option>
+        <option value="damage">Damage</option>
+        <option value="expiry">Expiry</option>
+        <option value="return">Return</option>
+        <option value="rtv">RTV</option>
+        <option value="correction">Correction</option>
+      </select>
+      <input type="text" id="mov-search" placeholder="Search product..." style="padding:5px 10px; border:1px solid var(--line); border-radius:5px; background:var(--bg); color:var(--ink); font-family:inherit; min-width:180px;">
+      <button type="button" class="btn ghost sm" id="mov-refresh">Refresh</button>
+      <button type="button" class="btn ghost sm" id="mov-clear">Clear</button>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th><th>Product</th><th style="text-align:right;">Change</th>
+          <th style="text-align:right;">Balance</th><th>Reason</th>
+          <th>Reference</th>
+        </tr>
+      </thead>
+      <tbody id="movements-rows"></tbody>
+    </table>
+    <div id="movements-summary" style="margin-top:12px; font-size:13px; color:var(--sub);"></div>
+  </div>
+
   <div id="view-supplier" style="display:none;">
     <h1>Supplier Bills</h1>
     <p class="lede">Invoices received from suppliers (imported from PDFs).</p>
@@ -571,6 +665,62 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
   </div>
 </div>
 
+<div class="overlay" id="supplier-overlay">
+  <div class="modal" style="max-width:640px;">
+    <h2 id="supplier-modal-title">Add supplier</h2>
+    <form id="supplier-form" autocomplete="off">
+      <div class="field"><label>Name *</label><input type="text" id="sup-name" maxlength="255" required></div>
+      <div class="grid2">
+        <div class="field"><label>TRN</label><input type="text" id="sup-trn" maxlength="50"></div>
+        <div class="field"><label>PO Box</label><input type="text" id="sup-po-box" maxlength="50"></div>
+      </div>
+      <div class="field"><label>Address</label><textarea id="sup-address"></textarea></div>
+      <div class="grid2">
+        <div class="field"><label>Email</label><input type="text" id="sup-email" maxlength="255"></div>
+        <div class="field"><label>Phone</label><input type="text" id="sup-phone" maxlength="50"></div>
+        <div class="field"><label>Contact person</label><input type="text" id="sup-contact" maxlength="150"></div>
+        <div class="field"><label>Payment terms</label><input type="text" id="sup-terms" maxlength="100" placeholder="e.g. Net 30"></div>
+        <div class="field"><label>Lead time (days)</label><input type="number" id="sup-lead" min="0" max="3650" step="1"></div>
+        <div class="field"><label>Category</label>
+          <select id="sup-category">
+            <option value=""></option>
+            <option value="medicines">Medicines</option>
+            <option value="equipment">Equipment</option>
+            <option value="consumables">Consumables</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid2" id="sup-bank-fields">
+        <div class="field"><label>Bank name</label><input type="text" id="sup-bank-name" maxlength="150"></div>
+        <div class="field"><label>Bank account</label><input type="text" id="sup-bank-account" maxlength="100"></div>
+      </div>
+      <div class="field"><label>Notes</label><textarea id="sup-notes"></textarea></div>
+      <div class="field"><label style="display:flex; align-items:center; gap:8px; font-size:13px; color:var(--ink);"><input type="checkbox" id="sup-active" checked style="width:auto;"> Active</label></div>
+      <div class="modal-actions">
+        <div><button type="button" class="btn ghost" id="sup-delete-btn" style="display:none; color:var(--danger); border-color:var(--danger);">Delete</button></div>
+        <div class="right">
+          <button type="button" class="btn ghost" id="sup-cancel-btn">Cancel</button>
+          <button type="submit" class="btn" id="sup-save-btn">Save</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="overlay" id="movements-overlay">
+  <div class="modal" style="max-width:720px;">
+    <h2 id="movements-title">Movements</h2>
+    <div id="movements-body" style="max-height:60vh; overflow-y:auto;"></div>
+    <div class="modal-actions">
+      <div></div>
+      <div class="right">
+        <button type="button" class="btn ghost" id="close-movements-btn">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="client-overlay">
   <div class="modal">
     <h2 id="client-modal-title">New client</h2>
@@ -763,7 +913,7 @@ function renderSidebarUser() {
 function applyRolePermissions() {
   if (!currentUser) return;
   const admin = currentUser.role === 'admin';
-  const hideIds = ['new-invoice-btn','new-quotation-btn','new-client-btn','new-inv-item-btn','new-company-btn','import-pdf-btn'];
+  const hideIds = ['new-invoice-btn','new-quotation-btn','new-client-btn','new-inv-item-btn','new-company-btn','new-supplier-btn','import-pdf-btn'];
   hideIds.forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = admin ? '' : 'none';
@@ -799,7 +949,7 @@ async function checkAuth() {
   try {
     const res = await fetch(`${API_URL}/api/invoices`);
     if (res.status === 200) devMode = true;
-  } catch (e) { /* network issue — fall through to login */ }
+  } catch (e) { /* network issue ï¿½ fall through to login */ }
 
   if (devMode) {
     showApp();
@@ -1122,9 +1272,10 @@ function renderInventory() {
   $('#inventory-rows').innerHTML = inventory.length ? inventory.map(it => {
     const low = Number(it.balance) || 0;
     const flag = low < 20;
-    return `<tr class="bar ${flag ? 'bar-amber' : 'bar-pine'}" data-id="${it.id}"><td class="name">${it.product}</td><td>${it.par_level || 0}</td><td>${it.balance || 0}</td><td>${flag ? '<span class="status-pill status-Overdue">Reorder</span>' : '<span class="status-pill status-Paid">OK</span>'}</td></tr>`;
+    return `<tr class="bar ${flag ? 'bar-amber' : 'bar-pine'}" data-id="${it.id}"><td class="name">${it.product}</td><td>${it.par_level || 0}</td><td>${it.balance || 0}</td><td>${flag ? '<span class="status-pill status-Overdue">Reorder</span>' : '<span class="status-pill status-Paid">OK</span>'} <button type="button" class="btn ghost sm mov-btn" data-mov="${it.id}" style="margin-left:8px;">Movements</button></td></tr>`;
   }).join('') : `<tr><td colspan="4" class="empty">No products yet.</td></tr>`;
   document.querySelectorAll('#inventory-rows tr[data-id]').forEach(tr => tr.addEventListener('click', () => openInvItemModal(tr.dataset.id)));
+  document.querySelectorAll('#inventory-rows .mov-btn').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); openMovementsForProduct(b.dataset.mov); }));
   $('#inventory-list').innerHTML = inventory.map(it => `<option value="${it.product}">`).join('');
 }
 
@@ -1167,7 +1318,7 @@ document.querySelectorAll('.nav-item').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-        ['dashboard', 'invoices', 'quotations', 'statements', 'vat-report', 'clients', 'inventory', 'supplier', 'company', 'users'].forEach(v => {
+        ['dashboard', 'invoices', 'quotations', 'statements', 'vat-report', 'clients', 'suppliers', 'inventory', 'movements', 'supplier', 'company', 'users'].forEach(v => {
       $('#view-' + v).style.display = (v === btn.dataset.view) ? 'block' : 'none';
     });
   });
@@ -2232,6 +2383,435 @@ document.querySelectorAll('.nav-item').forEach(btn => {
 });
 loadCompanies().then(renderCompanyList).catch(() => {});
 
+// --- Topbar (R3) ---
+(function topbar() {
+  var search = document.getElementById('global-search');
+  var title = document.getElementById('topbar-title');
+  var av = document.getElementById('topbar-avatar');
+  var nm = document.getElementById('topbar-name');
+  var rl = document.getElementById('topbar-role');
+  if (!search || !title || !av || !nm || !rl) return;
+  var lastLabel = null;
+  function activeView() {
+    var vs = document.querySelectorAll('main > [id^="view-"]');
+    for (var i = 0; i < vs.length; i++) { if (vs[i].style.display !== 'none') return vs[i]; }
+    return null;
+  }
+  function applyFilter() {
+    var v = activeView();
+    if (!v) return;
+    var q = search.value.trim().toLowerCase();
+    v.querySelectorAll('tbody tr, .client-row').forEach(function (r) {
+      if (r.classList.contains('empty') || r.querySelector('td.empty')) return;
+      r.style.display = (!q || r.textContent.toLowerCase().indexOf(q) !== -1) ? '' : 'none';
+    });
+  }
+  function refresh() {
+    var btn = document.querySelector('.nav-item.active');
+    var label = btn ? btn.textContent.trim() : 'Dashboard';
+    if (label !== lastLabel) {
+      lastLabel = label;
+      title.textContent = label;
+      search.value = '';
+      document.querySelectorAll('main tbody tr, main .client-row').forEach(function (r) { r.style.display = ''; });
+    }
+    var u = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : null;
+    var name = u ? (u.username || u.name || u.email || '') : '';
+    var role = u ? (u.role || '') : '';
+    if (nm.textContent !== name) nm.textContent = name;
+    if (rl.textContent !== role) rl.textContent = role;
+    var initial = name ? name.charAt(0).toUpperCase() : 'A';
+    if (av.textContent !== initial) av.textContent = initial;
+    if (search.value.trim()) applyFilter();
+  }
+  search.addEventListener('input', applyFilter);
+  document.querySelectorAll('.nav-item').forEach(function (b) {
+    b.addEventListener('click', function () { setTimeout(refresh, 0); });
+  });
+  refresh();
+  setInterval(refresh, 1000);
+})();
+// ==========================================================
+// STOCK MOVEMENTS (ERP Phase 1)
+// ==========================================================
+const MOV_API = /\/api\/?$/.test(API_URL) ? '' : '/api';
+const movementsState = { limit: 200, searchTimer: null, wired: false };
+
+function movEsc(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function movDate(iso) {
+  if (!iso) return '-';
+  const hasZone = /(Z|[+-]\d\d:\d\d)$/.test(iso);
+  const d = new Date(hasZone ? iso : iso + 'Z');
+  return isNaN(d.getTime()) ? iso : d.toLocaleString();
+}
+
+function movementReasonPill(reason) {
+  const labels = {
+    initial: 'Baseline', invoice_created: 'Invoice Created', invoice_deleted: 'Invoice Deleted',
+    invoice_edited: 'Invoice Edited', quotation_converted: 'Quotation Converted',
+    stock_in: 'Stock In', stock_out: 'Stock Out', damage: 'Damage', expiry: 'Expiry',
+    return: 'Return', rtv: 'RTV', correction: 'Correction'
+  };
+  const label = labels[reason] || reason;
+  let cls = 'status-Sent';
+  let style = '';
+  if (reason === 'stock_in' || reason === 'return') {
+    cls = 'status-Paid';
+  } else if (reason === 'correction') {
+    cls = 'status-Overdue';
+  } else if (reason === 'stock_out' || reason === 'damage' || reason === 'expiry' || reason === 'rtv') {
+    cls = '';
+    style = ' style="background:rgba(176,71,63,0.14); color:var(--danger);"';
+  }
+  return `<span class="status-pill ${cls}"${style}>${movEsc(label)}</span>`;
+}
+
+// Returns an inline colour style (green for +, red for -, grey for 0).
+function movementChangeClass(qty) {
+  const n = Number(qty) || 0;
+  if (n > 0) return 'color:var(--pine);';
+  if (n < 0) return 'color:var(--danger);';
+  return 'color:var(--sub);';
+}
+
+function movementChangeText(qty) {
+  const n = Number(qty) || 0;
+  return (n > 0 ? '+' : '') + n.toFixed(2);
+}
+
+function movementRowHtml(m, withProduct) {
+  const ref = m.reference_label || (m.reference_id ? '#' + m.reference_id : '-');
+  return `<tr style="cursor:default;" title="${movEsc(m.notes || '')}">
+    <td>${movEsc(movDate(m.created_at))}</td>
+    ${withProduct ? `<td class="name">${movEsc(m.product_name)}</td>` : ''}
+    <td style="text-align:right; font-weight:600; ${movementChangeClass(m.change_qty)}">${movementChangeText(m.change_qty)}</td>
+    <td style="text-align:right;">${(Number(m.balance_after) || 0).toFixed(2)}</td>
+    <td>${movementReasonPill(m.reason)}</td>
+    <td>${movEsc(ref)}</td>
+  </tr>`;
+}
+
+async function loadMovements() {
+  const rows = $('#movements-rows');
+  if (!rows) return;
+  const params = new URLSearchParams();
+  const from = $('#mov-from').value;
+  const to = $('#mov-to').value;
+  const reason = $('#mov-reason').value;
+  const search = $('#mov-search').value.trim();
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  if (reason) params.set('reason', reason);
+  if (search) params.set('search', search);
+  params.set('limit', String(movementsState.limit));
+  rows.innerHTML = '<tr><td colspan="6" class="empty">Loading...</td></tr>';
+  try {
+    const res = await api(`${MOV_API}/stock-movements?${params.toString()}`);
+    if (res && res.error) throw new Error(res.message || res.error);
+    const payload = (res && res.data !== undefined) ? res.data : res;
+    const list = (payload && payload.movements) || [];
+    const total = (payload && payload.total) || list.length;
+    rows.innerHTML = list.length
+      ? list.map(m => movementRowHtml(m, true)).join('')
+      : '<tr><td colspan="6" class="empty">No movements found.</td></tr>';
+    $('#movements-summary').textContent = `Showing ${list.length} of ${total} movement(s)` +
+      (total > list.length ? '. Narrow the filters to see older ones.' : '.');
+  } catch (e) {
+    rows.innerHTML = '<tr><td colspan="6" class="empty">Could not load movements.</td></tr>';
+    toastErr(e.message || 'Could not load movements');
+  }
+}
+
+function wireMovementFilters() {
+  if (movementsState.wired) return;
+  movementsState.wired = true;
+  ['#mov-from', '#mov-to', '#mov-reason'].forEach(sel => $(sel).addEventListener('change', loadMovements));
+  $('#mov-search').addEventListener('input', () => {
+    clearTimeout(movementsState.searchTimer);
+    movementsState.searchTimer = setTimeout(loadMovements, 300);
+  });
+  $('#mov-refresh').addEventListener('click', loadMovements);
+  $('#mov-clear').addEventListener('click', () => {
+    ['#mov-from', '#mov-to', '#mov-search'].forEach(sel => { $(sel).value = ''; });
+    $('#mov-reason').value = '';
+    loadMovements();
+  });
+}
+
+const movNavBtn = document.querySelector('.nav-item[data-view="movements"]');
+if (movNavBtn) movNavBtn.addEventListener('click', () => { wireMovementFilters(); loadMovements(); });
+
+async function openMovementsForProduct(inventoryId) {
+  const id = parseInt(inventoryId, 10);
+  const item = (inventory || []).find(it => parseInt(it.id, 10) === id);
+  $('#movements-title').textContent = 'Movements: ' + (item ? item.product : 'Product #' + id);
+  const body = $('#movements-body');
+  body.innerHTML = '<div class="empty">Loading...</div>';
+  $('#movements-overlay').classList.add('show');
+  try {
+    const res = await api(`${MOV_API}/inventory/${id}/movements?limit=200`);
+    if (res && res.error) throw new Error(res.message || res.error);
+    const list = (res && res.data !== undefined) ? res.data : res;
+    const rowsHtml = (Array.isArray(list) ? list : []).map(m => movementRowHtml(m, false)).join('');
+    const current = item ? `<div style="margin-bottom:10px; font-size:13px; color:var(--sub);">Current balance: <strong style="color:var(--ink);">${movEsc(item.balance || 0)}</strong></div>` : '';
+    body.innerHTML = rowsHtml
+      ? `${current}<table>
+          <thead><tr><th>Date</th><th style="text-align:right;">Change</th><th style="text-align:right;">Balance</th><th>Reason</th><th>Reference</th></tr></thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>`
+      : `${current}<div class="empty">No movements recorded for this product yet.</div>`;
+  } catch (e) {
+    body.innerHTML = '<div class="empty">Could not load movements.</div>';
+    toastErr(e.message || 'Could not load movements');
+  }
+}
+
+(function wireMovementsModal() {
+  const overlay = document.getElementById('movements-overlay');
+  const closeBtn = document.getElementById('close-movements-btn');
+  if (closeBtn) closeBtn.addEventListener('click', () => overlay.classList.remove('show'));
+  if (overlay) overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('show'); });
+})();
+
+// ==========================================================
+// SUPPLIERS TAB (ERP Phase 3)
+// ==========================================================
+const SUP_API = /\/api\/?$/.test(API_URL) ? '' : '/api';
+let suppliersCache = [];
+let editingSupplierId = null;
+
+function supEsc(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// Calls the API and returns the data part. Throws an Error with the server's message on failure.
+async function supApi(path, options) {
+    const opts = { ...(options || {}) };
+    if (opts.body !== undefined) {
+        opts.headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+    }
+    const res = await api(`${SUP_API}${path}`, opts);
+    if (res && res.error) throw new Error(res.message || res.error);
+    return (res && res.data !== undefined) ? res.data : res;
+}
+
+async function loadSuppliers() {
+    const list = await supApi('/suppliers');
+    suppliersCache = Array.isArray(list) ? list : [];
+}
+
+function applySupplierFilters() {
+    const q = ($('#sup-search').value || '').trim().toLowerCase();
+    const mode = $('#sup-filter').value;
+    return suppliersCache.filter(s => {
+        if (mode === 'active' && !s.is_active) return false;
+        if (mode === 'inactive' && s.is_active) return false;
+        if (!q) return true;
+        return (s.name || '').toLowerCase().includes(q) || (s.trn || '').toLowerCase().includes(q);
+    });
+}
+
+function renderSuppliersList() {
+    const body = $('#suppliers-rows');
+    if (!body) return;
+    const admin = isAdmin();
+    const rows = applySupplierFilters();
+    if (!rows.length) {
+        const msg = suppliersCache.length
+            ? 'No suppliers match your search.'
+            : (admin ? 'No suppliers yet. Click + Add supplier to start.' : 'No suppliers yet.');
+        body.innerHTML = `<tr><td colspan="6" class="empty">${msg}</td></tr>`;
+        return;
+    }
+    body.innerHTML = rows.map(s => {
+        const pill = s.is_active
+            ? '<span class="status-pill status-Paid">Active</span>'
+            : '<span class="status-pill status-Sent">Inactive</span>';
+        const toggle = admin
+            ? ` <button type="button" class="btn ghost sm sup-toggle" data-id="${s.id}" style="margin-left:8px;">${s.is_active ? 'Deactivate' : 'Activate'}</button>`
+            : '';
+        return `<tr data-id="${s.id}" style="${s.is_active ? '' : 'opacity:0.6;'}">
+            <td class="name">${supEsc(s.name)}</td>
+            <td>${supEsc(s.trn || '-')}</td>
+            <td>${supEsc(s.contact_person || '-')}</td>
+            <td>${supEsc(s.phone || '-')}</td>
+            <td>${supEsc(s.payment_terms || '-')}</td>
+            <td>${pill}${toggle}</td>
+        </tr>`;
+    }).join('');
+    document.querySelectorAll('#suppliers-rows tr[data-id]').forEach(tr => {
+        tr.addEventListener('click', () => openSupplierModal(tr.dataset.id));
+    });
+    document.querySelectorAll('#suppliers-rows .sup-toggle').forEach(b => {
+        b.addEventListener('click', e => { e.stopPropagation(); toggleSupplierActive(b.dataset.id); });
+    });
+}
+
+function hideBankFieldsIfNotAdmin() {
+    const box = $('#sup-bank-fields');
+    if (box) box.style.display = isAdmin() ? '' : 'none';
+}
+
+function fillSupplierForm(s) {
+    const v = x => (x == null ? '' : x);
+    $('#sup-name').value = s ? v(s.name) : '';
+    $('#sup-trn').value = s ? v(s.trn) : '';
+    $('#sup-po-box').value = s ? v(s.po_box) : '';
+    $('#sup-address').value = s ? v(s.address) : '';
+    $('#sup-email').value = s ? v(s.email) : '';
+    $('#sup-phone').value = s ? v(s.phone) : '';
+    $('#sup-contact').value = s ? v(s.contact_person) : '';
+    $('#sup-terms').value = s ? v(s.payment_terms) : '';
+    $('#sup-lead').value = s ? v(s.lead_time_days) : '';
+    const sel = $('#sup-category');
+    sel.querySelectorAll('option[data-custom]').forEach(o => o.remove());
+    const cat = s ? v(s.category) : '';
+    if (cat && !Array.from(sel.options).some(o => o.value === cat)) {
+        const opt = document.createElement('option');
+        opt.value = cat;
+        opt.textContent = cat;
+        opt.setAttribute('data-custom', '1');
+        sel.appendChild(opt);
+    }
+    sel.value = cat;
+    // bank fields are absent from the data for non-admins, so they just stay empty (and hidden)
+    $('#sup-bank-name').value = s ? v(s.bank_name) : '';
+    $('#sup-bank-account').value = s ? v(s.bank_account) : '';
+    $('#sup-notes').value = s ? v(s.notes) : '';
+    $('#sup-active').checked = s ? !!s.is_active : true;
+}
+
+function readSupplierForm() {
+    const val = sel => $(sel).value.trim();
+    const leadRaw = val('#sup-lead');
+    const data = {
+        name: val('#sup-name'),
+        trn: val('#sup-trn'),
+        po_box: val('#sup-po-box'),
+        address: val('#sup-address'),
+        email: val('#sup-email'),
+        phone: val('#sup-phone'),
+        contact_person: val('#sup-contact'),
+        payment_terms: val('#sup-terms'),
+        lead_time_days: leadRaw === '' ? null : parseInt(leadRaw, 10),
+        category: $('#sup-category').value || null,
+        notes: val('#sup-notes'),
+        is_active: $('#sup-active').checked
+    };
+    if (isAdmin()) {
+        data.bank_name = val('#sup-bank-name');
+        data.bank_account = val('#sup-bank-account');
+    }
+    return data;
+}
+
+function closeSupplierModal() {
+    $('#supplier-overlay').classList.remove('show');
+    editingSupplierId = null;
+}
+
+function openSupplierModal(id) {
+    const sid = id ? parseInt(id, 10) : null;
+    const s = sid ? suppliersCache.find(x => parseInt(x.id, 10) === sid) : null;
+    if (sid && !s) { toastErr('Supplier not found'); return; }
+    const admin = isAdmin();
+    editingSupplierId = s ? sid : null;
+    $('#supplier-modal-title').textContent = s ? (admin ? 'Edit supplier' : 'Supplier details') : 'Add supplier';
+    fillSupplierForm(s);
+    // view-only users can look but not change anything
+    document.querySelectorAll('#supplier-form input, #supplier-form select, #supplier-form textarea').forEach(el => {
+        el.disabled = !admin;
+    });
+    $('#sup-save-btn').style.display = admin ? '' : 'none';
+    $('#sup-delete-btn').style.display = (s && admin) ? 'inline-block' : 'none';
+    hideBankFieldsIfNotAdmin();
+    $('#supplier-overlay').classList.add('show');
+}
+
+async function submitSupplierForm(e) {
+    e.preventDefault();
+    if (!isAdmin()) return;
+    const data = readSupplierForm();
+    if (data.name.length < 3) { toastErr('Name must be at least 3 characters'); return; }
+    if (data.lead_time_days !== null && (isNaN(data.lead_time_days) || data.lead_time_days < 0 || data.lead_time_days > 3650)) {
+        toastErr('Lead time must be between 0 and 3650 days');
+        return;
+    }
+    const saveBtn = $('#sup-save-btn');
+    saveBtn.disabled = true;
+    try {
+        if (editingSupplierId) {
+            await supApi(`/suppliers/${editingSupplierId}`, { method: 'PUT', body: JSON.stringify(data) });
+            toastOk('Supplier updated');
+        } else {
+            await supApi('/suppliers', { method: 'POST', body: JSON.stringify(data) });
+            toastOk('Supplier added');
+        }
+        closeSupplierModal();
+        await loadSuppliers();
+        renderSuppliersList();
+    } catch (err) {
+        toastErr(err.message || 'Could not save supplier');
+    } finally {
+        saveBtn.disabled = false;
+    }
+}
+
+async function deleteSupplier(id) {
+    const sid = parseInt(id, 10);
+    if (!sid || !isAdmin()) return;
+    if (!confirm('Delete this supplier permanently? This cannot be undone.\n\nSuppliers that have imported bills cannot be deleted. Use Deactivate instead.')) return;
+    try {
+        await supApi(`/suppliers/${sid}`, { method: 'DELETE' });
+        toastOk('Supplier deleted');
+        closeSupplierModal();
+        await loadSuppliers();
+        renderSuppliersList();
+    } catch (err) {
+        toastErr(err.message || 'Could not delete supplier');
+    }
+}
+
+async function toggleSupplierActive(id) {
+    const sid = parseInt(id, 10);
+    const s = suppliersCache.find(x => parseInt(x.id, 10) === sid);
+    if (!s || !isAdmin()) return;
+    try {
+        await supApi(`/suppliers/${sid}/${s.is_active ? 'deactivate' : 'activate'}`, { method: 'POST' });
+        toastOk(s.is_active ? 'Supplier deactivated' : 'Supplier activated');
+        await loadSuppliers();
+        renderSuppliersList();
+    } catch (err) {
+        toastErr(err.message || 'Could not change supplier status');
+    }
+}
+
+(function wireSuppliers() {
+    const byId = x => document.getElementById(x);
+    if (!byId('new-supplier-btn') || !byId('supplier-overlay')) return;
+    byId('new-supplier-btn').addEventListener('click', () => openSupplierModal(null));
+    byId('sup-search').addEventListener('input', renderSuppliersList);
+    byId('sup-filter').addEventListener('change', renderSuppliersList);
+    byId('supplier-form').addEventListener('submit', submitSupplierForm);
+    byId('sup-cancel-btn').addEventListener('click', closeSupplierModal);
+    byId('sup-delete-btn').addEventListener('click', () => deleteSupplier(editingSupplierId));
+    byId('supplier-overlay').addEventListener('click', e => {
+        if (e.target === byId('supplier-overlay')) closeSupplierModal();
+    });
+    // load the list whenever the Suppliers tab is opened
+    document.querySelectorAll('.nav-item').forEach(btn => {
+        if (btn.dataset.view === 'suppliers') {
+            btn.addEventListener('click', async () => {
+                try { await loadSuppliers(); renderSuppliersList(); }
+                catch (err) { toastErr(err.message || 'Could not load suppliers'); }
+            });
+        }
+    });
+})();
+
 // --- Low-stock bell ---
 function renderInventoryChart() {
   const container = document.getElementById('inventory-chart');
@@ -2257,7 +2837,7 @@ function renderInventoryChart() {
     const barPct = Math.max(2, Math.min(100, (balance / maxScale) * 100));
     const parPct = par > 0 ? Math.max(0, Math.min(100, (par / maxScale) * 100)) : 0;
     const parLine = parPct > 0 ? `<div class="chart-par-line" style="bottom:${parPct}%;" title="Par level: ${par}"></div>` : '';
-    const label = (it.product || '').length > 14 ? (it.product || '').slice(0, 13) + '…' : (it.product || '');
+    const label = (it.product || '').length > 14 ? (it.product || '').slice(0, 13) + 'ï¿½' : (it.product || '');
     return `<div class="chart-bar-wrap" title="${it.product || ''} - Balance: ${balance}${par ? ' | Par: ' + par : ''}">
       <div class="chart-bar-value" style="color:${barColor};">${balance}</div>
       <div class="chart-bar-track">
@@ -2628,10 +3208,10 @@ function renderStatement(data) {
     <tr>
       <td>${tx.date || ''}</td>
       <td>${tx.type === 'invoice' ? 'Invoice' : 'Payment'}</td>
-      <td>${tx.reference || '—'}</td>
-      <td style="text-align:right;">${tx.type === 'invoice' ? fmt(tx.debit) : '—'}</td>
-      <td style="text-align:right;">${tx.type === 'payment' ? fmt(tx.credit) : '—'}</td>
-      <td style="text-align:right;">${tx.type === 'invoice' ? fmt(tx.vat) : '—'}</td>
+      <td>${tx.reference || 'ï¿½'}</td>
+      <td style="text-align:right;">${tx.type === 'invoice' ? fmt(tx.debit) : 'ï¿½'}</td>
+      <td style="text-align:right;">${tx.type === 'payment' ? fmt(tx.credit) : 'ï¿½'}</td>
+      <td style="text-align:right;">${tx.type === 'invoice' ? fmt(tx.vat) : 'ï¿½'}</td>
       <td style="text-align:right; font-weight:600;">${fmt(tx.balance)}</td>
     </tr>
   `).join('') : `<tr><td colspan="7" class="empty">No transactions in this period.</td></tr>`;
