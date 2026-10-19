@@ -1,91 +1,119 @@
-﻿"""Routes for manual stock adjustments (ERP Phase 2).
+"""Manual stock adjustments (ERP Phase 2).
 
-POST /api/inventory/<id>/adjust
-  Body: { change_qty: number, reason: "stock_in"|"stock_out"|"damage"|
-          "expiry"|"return"|"rtv"|"correction", notes: string (optional) }
-  Requires admin. Records the change through the stock_movements helper
-  so every adjustment appears in the Movements tab.
+Registered in app.py with url_prefix="/api":
 
-The ONLY way to change inventory.balance now — direct edits through
-PUT /api/inventory/<id> cannot touch balance.
+  POST /api/inventory/<id>/adjust
+       body: { "change_qty": 5, "reason": "stock_in", "notes": "optional text" }
+
+Who can use it: the app-wide before_request check in app.py already refuses
+POST / PUT / DELETE / PATCH for anyone who is not an admin (403), so no extra
+decorator is needed here.
+
+How the stock changes: log_movement() (utils/stock_movements.py) is the ONLY
+place that touches inventory.balance. It adds change_qty to the balance, floors
+the result at 0, and writes the history row, all in one transaction. This route
+must NOT also edit the balance itself, or the change would be applied twice.
 """
 
 from __future__ import annotations
 
+import math
 from decimal import Decimal, InvalidOperation
 
 from flask import Blueprint, request
+from sqlalchemy.exc import SQLAlchemyError
 
 from extensions import db
 from models import Inventory
 from utils.responses import api_response
-from utils.stock_movements import log_movement
+from utils.stock_movements import get_current_user_id, log_movement
 
 inventory_adjust_bp = Blueprint("inventory_adjust", __name__)
 
-MANUAL_REASONS = {
-    "stock_in", "stock_out", "damage", "expiry",
-    "return", "rtv", "correction",
-}
+# Reasons a person may choose by hand (the invoice_* ones are automatic only).
+ALLOWED_REASONS = ("stock_in", "stock_out", "damage", "expiry", "return", "rtv", "correction")
+# Stock arriving must be positive; stock leaving must be negative; correction may be either.
+ADD_REASONS = ("stock_in", "return")
+REMOVE_REASONS = ("stock_out", "damage", "expiry", "rtv")
+
+ALLOWED_FIELDS = {"change_qty", "reason", "notes"}
+MAX_ABS_QTY = Decimal("1000000")
+NOTES_MAX = 5000
 
 
-def _to_decimal(value) -> Decimal:
+def parse_adjustment(body):
+    """Check the request body. Returns (cleaned_dict, None) or (None, (error, message))."""
+    if not isinstance(body, dict):
+        return None, ("invalid_json", "Request body must be a JSON object.")
+
+    unknown = set(body.keys()) - ALLOWED_FIELDS
+    if unknown:
+        return None, ("unknown_fields", f"Unrecognized field(s): {', '.join(sorted(unknown))}.")
+
+    for key in ("change_qty", "reason"):
+        if key not in body or body[key] is None or body[key] == "":
+            return None, ("missing_field", f"'{key}' is required.")
+
+    raw_qty = body["change_qty"]
+    if isinstance(raw_qty, bool) or not isinstance(raw_qty, (int, float, str)):
+        return None, ("invalid_type", "'change_qty' must be a number.")
     try:
-        return Decimal(str(value))
-    except (InvalidOperation, TypeError):
-        raise ValueError(f"'{value}' is not a valid number.")
+        qty = Decimal(str(raw_qty).strip())
+    except InvalidOperation:
+        return None, ("invalid_type", "'change_qty' must be a number.")
+    if not qty.is_finite() or (isinstance(raw_qty, float) and not math.isfinite(raw_qty)):
+        return None, ("invalid_type", "'change_qty' must be a finite number.")
+    qty = qty.quantize(Decimal("0.01"))
+    if qty == 0:
+        return None, ("invalid_value", "'change_qty' cannot be 0.")
+    if abs(qty) > MAX_ABS_QTY:
+        return None, ("invalid_value", f"'change_qty' must be between -{MAX_ABS_QTY} and {MAX_ABS_QTY}.")
 
+    reason = body["reason"]
+    if not isinstance(reason, str) or reason not in ALLOWED_REASONS:
+        return None, ("invalid_value", f"'reason' must be one of: {', '.join(ALLOWED_REASONS)}.")
+    if reason in ADD_REASONS and qty < 0:
+        return None, ("invalid_value", f"For '{reason}' the quantity must be positive.")
+    if reason in REMOVE_REASONS and qty > 0:
+        return None, ("invalid_value", f"For '{reason}' the quantity must be negative (for example -5).")
 
-@inventory_adjust_bp.route("/inventory/<int:item_id>/adjust", methods=["POST"])
-def adjust_inventory(item_id: int):
-    item = Inventory.query.get(item_id)
-    if item is None:
-        return api_response(error="not_found", message=f"No inventory item with id {item_id}."), 404
-
-    body = request.get_json(silent=True)
-    if body is None or not isinstance(body, dict):
-        return api_response(error="invalid_json", message="Request body must be a JSON object."), 400
-
-    # Validate change_qty
-    if "change_qty" not in body:
-        return api_response(error="missing_field", message="'change_qty' is required."), 400
-    try:
-        change_qty = _to_decimal(body["change_qty"])
-    except ValueError as exc:
-        return api_response(error="invalid_type", message=str(exc)), 400
-
-    if change_qty == 0:
-        return api_response(error="bad_request", message="'change_qty' cannot be zero."), 400
-
-    # Validate reason
-    reason = body.get("reason")
-    if not isinstance(reason, str) or reason not in MANUAL_REASONS:
-        return api_response(
-            error="invalid_type",
-            message=f"'reason' must be one of {sorted(MANUAL_REASONS)}.",
-        ), 400
-
-    # Validate notes (optional)
     notes = body.get("notes")
     if notes is not None and not isinstance(notes, str):
-        return api_response(error="invalid_type", message="'notes' must be a string."), 400
-    if notes:
-        notes = notes.strip() or None
+        return None, ("invalid_type", "'notes' must be text.")
+    notes = (notes or "").strip() or None
+    if notes is not None and len(notes) > NOTES_MAX:
+        return None, ("invalid_value", f"'notes' must be at most {NOTES_MAX} characters.")
+
+    return {"change_qty": qty, "reason": reason, "notes": notes}, None
+
+
+@inventory_adjust_bp.route("/inventory/<int:inventory_id>/adjust", methods=["POST"])
+def adjust_inventory(inventory_id: int):
+    body = request.get_json(silent=True)
+    cleaned, err = parse_adjustment(body)
+    if err:
+        return api_response(error=err[0], message=err[1]), 400
+
+    # Lock the row so two people adjusting the same product at once cannot clash.
+    item = Inventory.query.filter_by(id=inventory_id).with_for_update().first()
+    if item is None:
+        return api_response(error="not_found", message="Inventory item not found."), 404
 
     try:
-        movement = log_movement(
+        log_movement(
             inventory_id=item.id,
             product_name=item.product,
-            change_qty=change_qty,
-            reason=reason,
-            notes=notes,
+            change_qty=cleaned["change_qty"],
+            reason=cleaned["reason"],
+            notes=cleaned["notes"],
+            created_by=get_current_user_id(),
         )
         db.session.commit()
-    except Exception as exc:  # noqa: BLE001 - surface DB errors plainly
+    except ValueError as exc:
+        db.session.rollback()
+        return api_response(error="invalid_value", message=str(exc)), 400
+    except SQLAlchemyError as exc:
         db.session.rollback()
         return api_response(error="db_error", message=str(exc)), 500
 
-    return api_response(data={
-        "movement": movement.to_dict(),
-        "inventory": item.to_dict(),
-    }), 201
+    return api_response(data=item.to_dict()), 200
