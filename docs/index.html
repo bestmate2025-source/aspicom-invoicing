@@ -37,7 +37,8 @@ nav{display:flex; flex-direction:column; gap:2px;}
 .nav-item{padding:9px 10px; border-radius:8px; font-size:14px; font-weight:500; color:var(--sub); cursor:pointer; border:none; background:none; text-align:left; font-family:inherit; width:100%; transition:background 0.15s, color 0.15s;}
 .nav-item:hover{background:var(--grey-soft); color:var(--ink);}
 .nav-item.active{background:var(--pine-soft); color:var(--pine);}
-main{flex:1; padding:32px 40px 32px; overflow-y:auto; overflow-x:hidden; height:100vh; box-sizing:border-box;}
+main{flex:1; padding:32px 48px 60px; overflow-y:auto; overflow-x:hidden; height:100vh; box-sizing:border-box; max-width:1400px; margin:0 auto;}
+@media (max-width:1200px){ main{padding:24px 24px 60px !important;} }
 h1{font-family:'Fraunces',serif; font-size:28px; font-weight:500; margin:0 0 4px;}
 .lede{color:var(--sub); font-size:14px; margin:0 0 28px;}
 .stats{display:flex; gap:16px; margin-bottom:32px; flex-wrap:wrap;}
@@ -211,6 +212,96 @@ tbody tr:hover{background:var(--pine-soft);}
 .stat{padding:18px 20px;}
 .stat-value{font-family:'Inter',sans-serif; font-weight:700; font-size:28px; letter-spacing:-0.02em;}
 @media (max-width:640px){ #topbar-title,#topbar-name,#topbar-role{display:none;} #global-search{width:100%; max-width:none;} }
+
+/* R5 - purchasing */
+.po-head, .po-row{display:grid; grid-template-columns:2fr 1.2fr 1fr 0.9fr 0.7fr 1fr auto; gap:8px; align-items:center;}
+.po-head{font-size:11px; text-transform:uppercase; color:var(--sub); font-weight:600; margin-bottom:6px;}
+.po-row{margin-bottom:8px;}
+.po-row input{padding:7px 8px; border:1px solid var(--line); border-radius:8px; font-size:13px; background:var(--bg); color:var(--ink); font-family:inherit; width:100%;}
+.po-row input:focus{outline:none; border-color:var(--pine); box-shadow:0 0 0 3px var(--pine-soft);}
+.po-row .amt{font-size:13px; text-align:right; padding-right:4px; color:var(--sub);}
+.po-row .rm{background:none; border:none; color:var(--danger); cursor:pointer; font-size:16px; line-height:1; padding:4px 8px; border-radius:6px;}
+.po-actions .btn{margin-right:6px;}
+#grn-rows input{width:110px; padding:6px 8px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink); font-family:inherit; text-align:right;}
+#po-receipts{margin-top:14px; font-size:13px;}
+#po-receipts table{margin-top:6px;}
+@media (max-width:640px){ .po-head{display:none;} .po-row{grid-template-columns:1fr;} }
+/* R6 - orange upload button */
+.btn.orange{background:#C2570C; color:#fff;}
+.btn.orange:hover{background:#A94A08; opacity:1;}
+/* R7 - Reports */
+.report-tab{padding:7px 16px; border-radius:16px; font-size:13px; font-weight:600; border:1px solid var(--line); background:var(--surface); color:var(--sub); cursor:pointer; font-family:inherit;}
+.report-tab:hover{background:var(--grey-soft);}
+.report-tab.active{background:var(--pine); border-color:var(--pine); color:#fff;}
+.rpt-filters label{display:flex; align-items:center; gap:6px; font-size:13px; color:var(--sub);}
+.rpt-filters input[type=date]{padding:5px 8px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink); font-family:inherit;}
+.rpt-note{margin:0 0 14px; padding:8px 12px; border:1px solid var(--line); border-left:3px solid var(--amber); border-radius:8px; font-size:13px; color:var(--sub);}
+.rpt-pill{display:inline-block; padding:2px 10px; border-radius:12px; font-size:12px; font-weight:600;}
+.rpt-ok{background:var(--pine-soft); color:var(--pine);}
+.rpt-warn{background:var(--amber-soft); color:var(--amber);}
+.rpt-bad{background:rgba(234,67,53,0.12); color:var(--danger);}
+.rpt-clickable{cursor:pointer;}
+.rpt-selected{outline:2px solid var(--pine);}
+/* R8 - sidebar sections */
+.rail{overflow-y:auto;}
+.nav-section{font-size:11px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--grey); padding:16px 10px 4px;}
+.nav-section:first-child{padding-top:0;}
+@media (max-width:640px){ .nav-section{display:none;} }
+/* R9 - sidebar text size */
+.nav-item{font-size:15px;}
+.nav-section{font-size:12px;}
+/* R10 - collapsible sidebar groups */
+.nav-section{display:flex; align-items:center; justify-content:space-between; user-select:none;}
+.nav-section:not(.nav-fixed){cursor:pointer; border-radius:8px; margin-top:6px; padding-bottom:6px;}
+.nav-section:not(.nav-fixed):hover{color:var(--ink); background:var(--grey-soft);}
+.nav-section:not(.nav-fixed)::after{content:""; width:6px; height:6px; border-right:2px solid currentColor; border-bottom:2px solid currentColor; transform:rotate(-45deg); transition:transform 0.15s; margin-right:4px;}
+.nav-section.nav-open:not(.nav-fixed)::after{transform:rotate(45deg);}
+.nav-collapsed{display:none !important;}
+/* R11 - one clear selected color in the sidebar */
+:root .rail nav .nav-item{background:transparent; box-shadow:none;}
+:root .rail nav .nav-item:hover{background:var(--pine-soft); color:var(--ink);}
+:root .rail nav .nav-item.active, :root .rail nav .nav-item.active:hover{background:var(--pine) !important; color:#FFFFFF !important; box-shadow:none !important; font-weight:600;}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]) .rail nav .nav-item.active, :root:not([data-theme="light"]) .rail nav .nav-item.active:hover{color:#0B1A12 !important;}
+}
+:root[data-theme="dark"] .rail nav .nav-item.active, :root[data-theme="dark"] .rail nav .nav-item.active:hover{color:#0B1A12 !important;}
+.rail nav .nav-section:not(.nav-fixed):hover{background:transparent; color:var(--pine);}
+.rail nav .nav-section.nav-has-active{color:var(--pine);}
+.rail nav .nav-item:focus, .rail nav .nav-section:focus{outline:none;}
+.rail nav .nav-item:focus-visible, .rail nav .nav-section:focus-visible{outline:2px solid var(--pine); outline-offset:1px;}
+/* R12 - one color per sidebar group */
+.rail nav .ng-main{--gc:#0B5D52;}
+.rail nav .ng-sales{--gc:#10B981;}
+.rail nav .ng-purchasing{--gc:#059669;}
+.rail nav .ng-inventory{--gc:#65A30D;}
+.rail nav .ng-reports{--gc:#16A34A;}
+.rail nav .ng-settings{--gc:#4D7C0F;}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]) .rail nav .ng-main{--gc:#5EEAD4;}
+  :root:not([data-theme="light"]) .rail nav .ng-sales{--gc:#6EE7B7;}
+  :root:not([data-theme="light"]) .rail nav .ng-purchasing{--gc:#34D399;}
+  :root:not([data-theme="light"]) .rail nav .ng-inventory{--gc:#A3E635;}
+  :root:not([data-theme="light"]) .rail nav .ng-reports{--gc:#4ADE80;}
+  :root:not([data-theme="light"]) .rail nav .ng-settings{--gc:#BEF264;}
+}
+:root[data-theme="dark"] .rail nav .ng-main{--gc:#5EEAD4;}
+:root[data-theme="dark"] .rail nav .ng-sales{--gc:#6EE7B7;}
+:root[data-theme="dark"] .rail nav .ng-purchasing{--gc:#34D399;}
+:root[data-theme="dark"] .rail nav .ng-inventory{--gc:#A3E635;}
+:root[data-theme="dark"] .rail nav .ng-reports{--gc:#4ADE80;}
+:root[data-theme="dark"] .rail nav .ng-settings{--gc:#BEF264;}
+.rail nav .nav-section.ng{color:var(--gc);}
+.rail nav .nav-section.ng:not(.nav-fixed):hover{color:var(--gc); background:rgba(127,127,127,0.12);}
+.rail nav .nav-item.ng::before{content:""; display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--gc); margin-right:10px; vertical-align:middle; opacity:0.7;}
+:root .rail nav .nav-item.ng:hover{background:rgba(127,127,127,0.12); color:var(--ink);}
+:root .rail nav .nav-item.ng.active, :root .rail nav .nav-item.ng.active:hover{background:var(--gc) !important; color:#FFFFFF !important;}
+:root .rail nav .nav-item.ng.active::before{background:#FFFFFF; opacity:1;}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]) .rail nav .nav-item.ng.active, :root:not([data-theme="light"]) .rail nav .nav-item.ng.active:hover{color:#0B1A12 !important;}
+  :root:not([data-theme="light"]) .rail nav .nav-item.ng.active::before{background:#0B1A12;}
+}
+:root[data-theme="dark"] .rail nav .nav-item.ng.active, :root[data-theme="dark"] .rail nav .nav-item.ng.active:hover{color:#0B1A12 !important;}
+:root[data-theme="dark"] .rail nav .nav-item.ng.active::before{background:#0B1A12;}
 </style>
 </head>
 <body>
@@ -220,17 +311,25 @@ tbody tr:hover{background:var(--pine-soft);}
 <div class="rail">
   <div class="brand">Ledger<span>.</span></div>
   <nav>
+    <div class="nav-section">MAIN MENU</div>
     <button class="nav-item active" data-view="dashboard">Dashboard</button>
+    <div class="nav-section">SALES</div>
     <button class="nav-item" data-view="invoices">Invoices</button>
     <button class="nav-item" data-view="quotations">Quotations</button>
-    <button class="nav-item" data-view="statements">Statements</button>
-    <button class="nav-item" data-view="vat-report">VAT Report</button>
     <button class="nav-item" data-view="clients">Clients</button>
+    <button class="nav-item" data-view="statements">Client Statements</button>
+    <div class="nav-section">PURCHASING</div>
     <button class="nav-item" data-view="suppliers">Suppliers</button>
-    <button class="nav-item" data-view="inventory">Inventory</button>
-    <button class="nav-item" data-view="movements">Movements</button>
+    <button class="nav-item" data-view="purchasing">Purchase Orders</button>
     <button class="nav-item" data-view="supplier">Supplier Bills</button>
-    <button class="nav-item" data-view="company">Company</button>
+    <div class="nav-section">INVENTORY</div>
+    <button class="nav-item" data-view="inventory">Inventory</button>
+    <button class="nav-item" data-view="movements">Stock Movements</button>
+    <div class="nav-section">REPORTS</div>
+    <button class="nav-item" data-view="vat-report">VAT Report</button>
+    <button class="nav-item" data-view="reports">Business Reports</button>
+    <div class="nav-section">SETTINGS</div>
+    <button class="nav-item" data-view="company">Company Profile</button>
     <button class="nav-item" data-view="users" id="nav-users" style="display:none;">Users</button>
   </nav>
   <div id="sidebar-user" style="margin-top:auto; padding-top:16px; border-top:1px solid var(--line);">
@@ -289,7 +388,7 @@ tbody tr:hover{background:var(--pine-soft);}
       </div>
 
       <div style="display:flex; gap:8px;">
-        <button class="btn ghost" id="import-pdf-btn">📄 Import supplier PDF</button>
+        
         <button class="btn" id="new-invoice-btn">New invoice</button>
       </div>
     </div>
@@ -331,6 +430,26 @@ tbody tr:hover{background:var(--pine-soft);}
     <div id="vat-body"></div>
   </div>
 
+  <div id="view-reports" style="display:none;">
+    <h1>Reports</h1>
+    <p class="lede">Stock value, how long stock has been sitting, and sales &mdash; read-only.</p>
+    <div class="toolbar" id="report-tabs" style="justify-content:flex-start; flex-wrap:wrap; gap:8px;">
+      <button type="button" class="report-tab active" data-report="inventory-valuation">Inventory Valuation</button>
+      <button type="button" class="report-tab" data-report="stock-aging">Stock Aging</button>
+      <button type="button" class="report-tab" data-report="sales-summary">Sales Summary</button>
+    </div>
+    <div class="toolbar rpt-filters" id="report-filters" style="display:none; justify-content:flex-start; flex-wrap:wrap; gap:8px;">
+      <label>From <input type="date" id="rpt-from"></label>
+      <label>To <input type="date" id="rpt-to"></label>
+      <button type="button" class="btn sm" id="rpt-apply">Apply</button>
+      <button type="button" class="btn ghost sm" data-rpt-quick="this-month">This Month</button>
+      <button type="button" class="btn ghost sm" data-rpt-quick="last-month">Last Month</button>
+      <button type="button" class="btn ghost sm" data-rpt-quick="this-year">This Year</button>
+      <button type="button" class="btn ghost sm" data-rpt-quick="all">All time</button>
+    </div>
+    <div id="report-content"><div class="empty">Loading...</div></div>
+  </div>
+
   <div id="view-clients" style="display:none;">
     <h1>Clients</h1>
     <p class="lede">Who you bill — name, address and TRN feed straight onto the invoice.</p>
@@ -363,7 +482,10 @@ tbody tr:hover{background:var(--pine-soft);}
     <h1>Suppliers</h1>
     <p class="lede">Manage your vendors and suppliers.</p>
     <div class="toolbar" style="flex-wrap:wrap; gap:8px; margin-bottom:16px;">
-      <button type="button" class="btn" id="new-supplier-btn">+ Add supplier</button>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button type="button" class="btn" id="new-supplier-btn">+ Add supplier</button>
+        <button type="button" class="btn orange" id="import-pdf-btn">Upload supplier PDF</button>
+      </div>
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
         <input type="text" id="sup-search" placeholder="Search by name or TRN..." style="padding:5px 10px; border:1px solid var(--line); border-radius:5px; background:var(--bg); color:var(--ink); font-family:inherit; min-width:220px;">
         <select id="sup-filter" style="padding:5px 8px; border:1px solid var(--line); border-radius:5px; background:var(--bg); color:var(--ink); font-family:inherit;">
@@ -419,6 +541,31 @@ tbody tr:hover{background:var(--pine-soft);}
       <tbody id="movements-rows"></tbody>
     </table>
     <div id="movements-summary" style="margin-top:12px; font-size:13px; color:var(--sub);"></div>
+  </div>
+
+  <div id="view-purchasing" style="display:none;">
+    <h1>Purchasing</h1>
+    <p class="lede">Purchase orders to your suppliers. Receiving goods adds the stock.</p>
+    <div class="toolbar" style="flex-wrap:wrap; gap:8px; margin-bottom:16px;">
+      <button type="button" class="btn" id="new-po-btn">+ New Purchase Order</button>
+      <select id="po-filter" style="padding:5px 8px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink); font-family:inherit;">
+        <option value="">All statuses</option>
+        <option value="Draft">Draft</option>
+        <option value="Sent">Sent</option>
+        <option value="Partial">Partial</option>
+        <option value="Received">Received</option>
+        <option value="Cancelled">Cancelled</option>
+      </select>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>PO #</th><th>Supplier</th><th>Date</th><th>Expected</th>
+          <th style="text-align:right;">Total</th><th>Status</th><th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="po-rows"><tr><td colspan="7" class="empty">Loading...</td></tr></tbody>
+    </table>
   </div>
 
   <div id="view-supplier" style="display:none;">
@@ -484,6 +631,10 @@ tbody tr:hover{background:var(--pine-soft);}
       <div class="field"><label>Email</label><input type="email" id="co-email"></div>
       <div class="field"><label>Website</label><input type="text" id="co-website"></div>
       <div class="field"><label>Signed by</label><input type="text" id="co-signee" placeholder="e.g. Accounts"></div>
+      <div class="field"><label>Currency</label>
+        <select id="co-currency"><option value="USD">USD ($)</option><option value="AED">AED</option></select>
+        <div style="font-size:12px; color:var(--sub); margin-top:4px;">All invoices issued by this company use this currency.</div>
+      </div>
       <div class="field"><label>Company logo</label><input type="file" accept="image/*" id="co-logo-file">
         <div style="margin-top:8px;"><img id="co-logo-preview" style="max-height:60px; display:none; border:1px solid var(--line); border-radius:4px;"></div>
       </div>
@@ -718,6 +869,60 @@ tbody tr:hover{background:var(--pine-soft);}
         <button type="button" class="btn ghost" id="close-movements-btn">Close</button>
       </div>
     </div>
+  </div>
+</div>
+
+<div class="overlay" id="po-overlay">
+  <div class="modal" style="max-width:880px;">
+    <h2 id="po-modal-title">New Purchase Order</h2>
+    <form id="po-form" autocomplete="off">
+      <div class="grid2">
+        <div class="field"><label>Supplier *</label><select id="po-supplier"></select></div>
+        <div class="field"><label>Status</label><select id="po-status"><option value="Draft">Draft</option><option value="Sent">Sent</option></select></div>
+        <div class="field"><label>Order date *</label><input type="date" id="po-order-date"></div>
+        <div class="field"><label>Expected date</label><input type="date" id="po-expected-date"></div>
+      </div>
+      <div class="section-title">Line items</div>
+      <div class="po-head"><span>Product</span><span>Brand</span><span>Unit price</span><span>Qty</span><span>VAT %</span><span style="text-align:right;">Amount</span><span></span></div>
+      <div id="po-items-wrap"></div>
+      <button type="button" class="btn ghost sm" id="po-add-line">+ Add line</button>
+      <div class="totals-box">
+        <div>Subtotal: <span id="po-subtotal">$0.00</span></div>
+        <div>VAT: <span id="po-vat">$0.00</span></div>
+        <div class="grand">Total: <span id="po-total">$0.00</span></div>
+      </div>
+      <div class="field" style="margin-top:14px;"><label>Notes</label><textarea id="po-notes" maxlength="2000"></textarea></div>
+      <div id="po-receipts"></div>
+      <div class="modal-actions">
+        <div><button type="button" class="btn ghost" id="po-cancel-order-btn" style="display:none; color:var(--danger); border-color:var(--danger);">Cancel this PO</button></div>
+        <div class="right">
+          <button type="button" class="btn ghost" id="po-close-btn">Close</button>
+          <button type="submit" class="btn" id="po-save-btn">Save</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="overlay" id="grn-overlay">
+  <div class="modal" style="max-width:780px;">
+    <h2 id="grn-title">Receive Goods</h2>
+    <form id="grn-form" autocomplete="off">
+      <table>
+        <thead>
+          <tr><th>Product</th><th style="text-align:right;">Ordered</th><th style="text-align:right;">Received so far</th><th style="text-align:right;">Remaining</th><th style="text-align:right;">Qty received now</th></tr>
+        </thead>
+        <tbody id="grn-rows"></tbody>
+      </table>
+      <div class="field" style="margin-top:14px;"><label>Notes</label><textarea id="grn-notes" maxlength="2000" placeholder="Optional, e.g. delivery note number"></textarea></div>
+      <div class="modal-actions">
+        <div></div>
+        <div class="right">
+          <button type="button" class="btn ghost" id="grn-cancel-btn">Cancel</button>
+          <button type="submit" class="btn" id="grn-confirm-btn">Confirm Receipt</button>
+        </div>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -1133,8 +1338,7 @@ function renderStats() {
       if (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) paid += total;
     }
   });
-  $
-  ('#stat-outstanding').textContent = fmt(outstanding);
+  $('#stat-outstanding').textContent = fmt(outstanding);
   $('#stat-overdue').textContent = fmt(overdue);
   $('#stat-paid').textContent = fmt(paid);
   $('#stat-collected').textContent = fmt(collected);
@@ -1298,7 +1502,7 @@ function populateCompanySelect(inv) {
   $('#f-company').value = String(want);
   $('#f-company').disabled = !!inv;
   // currency selector is set up here too, so both modals get it without extra wiring
-  if ($('#f-currency')) $('#f-currency').value = (inv && inv.currency) || 'USD';
+  applyCompanyCurrency(inv);
 }
 
 function renderInventory() {
@@ -1351,7 +1555,7 @@ document.querySelectorAll('.nav-item').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-        ['dashboard', 'invoices', 'quotations', 'statements', 'vat-report', 'clients', 'suppliers', 'inventory', 'movements', 'supplier', 'company', 'users'].forEach(v => {
+        ['dashboard', 'invoices', 'quotations', 'statements', 'vat-report', 'reports', 'clients', 'suppliers', 'inventory', 'purchasing', 'movements', 'supplier', 'company', 'users'].forEach(v => {
       $('#view-' + v).style.display = (v === btn.dataset.view) ? 'block' : 'none';
     });
   });
@@ -2001,6 +2205,7 @@ $('#company-form').addEventListener('submit', async (e) => {
     email: $('#co-email').value.trim(),
     website: $('#co-website').value.trim(),
     signee: $('#co-signee').value.trim(),
+    currency: $('#co-currency').value || 'USD',
   };
   try {
     const isNew = !editingCompanyId;
@@ -2049,6 +2254,7 @@ function fillCompanyFormFrom(c) {
   $('#co-email').value = c.email || '';
   $('#co-website').value = c.website || '';
   $('#co-signee').value = c.signee || '';
+  $('#co-currency').value = c.currency || 'USD';
   const logo = $('#co-logo-preview');
   const stamp = $('#co-stamp-preview');
   if (c.logo_path) { logo.src = `${API_URL}/${c.logo_path}?t=${Date.now()}`; logo.style.display = 'block'; }
@@ -2924,6 +3130,806 @@ async function submitAdjustStock(e) {
   byId('adj-cancel-btn').addEventListener('click', closeAdjustStockModal);
 })();
 
+// ==========================================================
+// PURCHASING (ERP Phase 4)
+// ==========================================================
+let poCache = [];
+let editingPOId = null;
+let poEditable = false;
+let receivingPO = null;
+
+function poEsc(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function poNum(x) {
+  const n = parseFloat(x);
+  return isFinite(n) ? n : 0;
+}
+function poRound(n) {
+  return Math.round((n + 1e-9) * 100) / 100;
+}
+function poStatusPill(status) {
+  if (status === 'Received') return '<span class="status-pill status-Paid">Received</span>';
+  if (status === 'Partial') return '<span class="status-pill status-Overdue">Partial</span>';
+  if (status === 'Cancelled') return '<span class="status-pill" style="background:rgba(234,67,53,0.12); color:var(--danger);">Cancelled</span>';
+  return '<span class="status-pill status-' + (status === 'Sent' ? 'Sent' : 'Draft') + '">' + poEsc(status) + '</span>';
+}
+
+// ---------- list ----------
+async function loadPurchaseOrders() {
+  const body = $('#po-rows');
+  if (!body) return;
+  $('#new-po-btn').style.display = isAdmin() ? '' : 'none';
+  try {
+    const list = await api('/api/purchase-orders');
+    poCache = Array.isArray(list) ? list : [];
+    renderPOList();
+  } catch (err) {
+    body.innerHTML = '<tr><td colspan="7" class="empty">Could not load purchase orders.</td></tr>';
+    toastErr(err.message || 'Could not load purchase orders');
+  }
+}
+
+function renderPOList() {
+  const body = $('#po-rows');
+  const admin = isAdmin();
+  const mode = $('#po-filter').value;
+  const rows = poCache.filter(po => !mode || po.status === mode);
+  if (!rows.length) {
+    body.innerHTML = '<tr><td colspan="7" class="empty">' + (poCache.length ? 'No purchase orders with that status.' : (admin ? 'No purchase orders yet. Click + New Purchase Order to start.' : 'No purchase orders yet.')) + '</td></tr>';
+    return;
+  }
+  body.innerHTML = rows.map(po => {
+    const canEdit = admin && po.status === 'Draft';
+    const canReceive = admin && (po.status === 'Draft' || po.status === 'Sent' || po.status === 'Partial');
+    const actions = '<span class="po-actions">'
+      + '<button type="button" class="btn ghost sm po-open" data-id="' + po.id + '">' + (canEdit ? 'Edit' : 'View') + '</button>'
+      + (canReceive ? '<button type="button" class="btn sm po-receive" data-id="' + po.id + '">Receive</button>' : '')
+      + '</span>';
+    return '<tr data-id="' + po.id + '">'
+      + '<td class="name">' + poEsc(po.po_number) + '</td>'
+      + '<td>' + poEsc(po.supplier_name || '-') + '</td>'
+      + '<td>' + poEsc(po.order_date || '-') + '</td>'
+      + '<td>' + poEsc(po.expected_date || '-') + '</td>'
+      + '<td style="text-align:right;">' + fmt(poNum(po.total)) + '</td>'
+      + '<td>' + poStatusPill(po.status) + '</td>'
+      + '<td>' + actions + '</td>'
+      + '</tr>';
+  }).join('');
+  document.querySelectorAll('#po-rows tr[data-id]').forEach(tr => {
+    tr.addEventListener('click', () => openPOModal(tr.dataset.id));
+  });
+  document.querySelectorAll('#po-rows .po-open').forEach(b => {
+    b.addEventListener('click', e => { e.stopPropagation(); openPOModal(b.dataset.id); });
+  });
+  document.querySelectorAll('#po-rows .po-receive').forEach(b => {
+    b.addEventListener('click', e => { e.stopPropagation(); openReceiveModal(b.dataset.id); });
+  });
+}
+
+// ---------- PO modal ----------
+function poRowHtml(it) {
+  it = it || {};
+  const vat = (it.vat_percent === undefined || it.vat_percent === null || it.vat_percent === '') ? 5 : it.vat_percent;
+  return '<div class="po-row">'
+    + '<input class="po-name" list="inventory-list" placeholder="Product name" value="' + poEsc(it.product_name || '') + '">'
+    + '<input class="po-brand" placeholder="Brand" value="' + poEsc(it.brand || '') + '">'
+    + '<input class="po-price" type="number" step="0.01" min="0" placeholder="0.00" value="' + poEsc(it.unit_price == null ? '' : it.unit_price) + '">'
+    + '<input class="po-qty" type="number" step="0.01" min="0" placeholder="0" value="' + poEsc(it.qty_ordered == null ? '' : it.qty_ordered) + '">'
+    + '<input class="po-vat" type="number" step="0.01" min="0" max="100" value="' + poEsc(vat) + '">'
+    + '<span class="amt">$0.00</span>'
+    + '<button type="button" class="rm" title="Remove line">x</button>'
+    + '</div>';
+}
+
+function readPOLines() {
+  return Array.from(document.querySelectorAll('#po-items-wrap .po-row')).map(row => ({
+    row: row,
+    name: row.querySelector('.po-name').value.trim(),
+    brand: row.querySelector('.po-brand').value.trim(),
+    priceRaw: row.querySelector('.po-price').value.trim(),
+    qtyRaw: row.querySelector('.po-qty').value.trim(),
+    vatRaw: row.querySelector('.po-vat').value.trim()
+  }));
+}
+
+function recalcPOTotals() {
+  let subtotal = 0, vat = 0;
+  readPOLines().forEach(l => {
+    const amount = poRound(poRound(poNum(l.priceRaw)) * poRound(poNum(l.qtyRaw)));
+    l.row.querySelector('.amt').textContent = fmt(amount);
+    subtotal += amount;
+    vat += poRound(amount * poNum(l.vatRaw) / 100);
+  });
+  subtotal = poRound(subtotal);
+  vat = poRound(vat);
+  $('#po-subtotal').textContent = fmt(subtotal);
+  $('#po-vat').textContent = fmt(vat);
+  $('#po-total').textContent = fmt(subtotal + vat);
+}
+
+function setPOEditable(editable) {
+  poEditable = editable;
+  document.querySelectorAll('#po-form input, #po-form select, #po-form textarea').forEach(el => { el.disabled = !editable; });
+  $('#po-save-btn').style.display = editable ? '' : 'none';
+  $('#po-add-line').style.display = editable ? '' : 'none';
+  document.querySelectorAll('#po-items-wrap .rm').forEach(b => { b.style.display = editable ? '' : 'none'; });
+}
+
+function renderPOReceipts(po) {
+  const box = $('#po-receipts');
+  if (!po) { box.innerHTML = ''; return; }
+  let html = '<div class="section-title">Received so far</div><table><thead><tr><th>Product</th><th style="text-align:right;">Ordered</th><th style="text-align:right;">Received</th></tr></thead><tbody>'
+    + (po.items || []).map(it => '<tr style="cursor:default;"><td>' + poEsc(it.product_name) + '</td><td style="text-align:right;">' + poEsc(it.qty_ordered) + '</td><td style="text-align:right;">' + poEsc(it.qty_received) + '</td></tr>').join('')
+    + '</tbody></table>';
+  const grns = po.grns || [];
+  if (grns.length) {
+    html += '<div class="section-title">Goods received notes</div>'
+      + grns.map(g => '<div style="margin-bottom:6px;"><strong>' + poEsc(g.grn_number) + '</strong> (' + poEsc(g.received_date) + '): '
+        + (g.items || []).map(i => poEsc(i.product_name) + ' x ' + poEsc(i.qty_received)).join(', ')
+        + (g.notes ? ' <span style="color:var(--sub);">- ' + poEsc(g.notes) + '</span>' : '') + '</div>').join('');
+  }
+  box.innerHTML = html;
+}
+
+async function openPOModal(id) {
+  const poId = id ? parseInt(id, 10) : null;
+  let po = null;
+  let suppliers = [];
+  try {
+    const list = await api('/api/suppliers');
+    suppliers = Array.isArray(list) ? list : [];
+    if (poId) po = await api('/api/purchase-orders/' + poId);
+  } catch (err) {
+    toastErr(err.message || 'Could not open purchase order');
+    return;
+  }
+  const admin = isAdmin();
+  const editable = admin && (!po || po.status === 'Draft');
+  editingPOId = po ? po.id : null;
+
+  $('#po-modal-title').textContent = po ? ((editable ? 'Edit Purchase Order: ' : 'Purchase Order: ') + po.po_number) : 'New Purchase Order';
+
+  const sel = $('#po-supplier');
+  const currentId = po ? po.supplier_id : null;
+  const usable = suppliers.filter(s => s.is_active || s.id === currentId);
+  sel.innerHTML = '<option value="">' + (usable.length ? 'Select supplier...' : 'Add a supplier first') + '</option>'
+    + usable.map(s => '<option value="' + s.id + '">' + poEsc(s.name) + (s.is_active ? '' : ' (inactive)') + '</option>').join('');
+  sel.value = currentId ? String(currentId) : '';
+
+  const st = $('#po-status');
+  if (editable) {
+    st.innerHTML = '<option value="Draft">Draft</option><option value="Sent">Sent</option>';
+    st.value = po ? po.status : 'Draft';
+  } else {
+    st.innerHTML = '<option>' + poEsc(po ? po.status : 'Draft') + '</option>';
+  }
+  $('#po-order-date').value = po ? (po.order_date || '') : new Date().toISOString().slice(0, 10);
+  $('#po-expected-date').value = po ? (po.expected_date || '') : '';
+  $('#po-notes').value = po ? (po.notes || '') : '';
+  $('#po-items-wrap').innerHTML = (po && po.items && po.items.length ? po.items : [{}]).map(poRowHtml).join('');
+  recalcPOTotals();
+  renderPOReceipts(po);
+  setPOEditable(editable);
+
+  const received = po ? (po.items || []).some(it => poNum(it.qty_received) > 0) : false;
+  $('#po-cancel-order-btn').style.display = (admin && po && (po.status === 'Draft' || po.status === 'Sent') && !received) ? '' : 'none';
+  $('#po-cancel-order-btn').disabled = false;
+  $('#po-overlay').classList.add('show');
+}
+
+function closePOModal() {
+  $('#po-overlay').classList.remove('show');
+  editingPOId = null;
+}
+
+async function savePO(e) {
+  e.preventDefault();
+  if (!isAdmin() || !poEditable) return;
+  const supplier = $('#po-supplier').value;
+  if (!supplier) { toastErr('Choose a supplier'); return; }
+  const orderDate = $('#po-order-date').value;
+  if (!orderDate) { toastErr('Enter the order date'); return; }
+  const expected = $('#po-expected-date').value;
+  if (expected && expected < orderDate) { toastErr('The expected date cannot be before the order date'); return; }
+
+  const items = [];
+  const lines = readPOLines();
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+    if (!l.name && !l.priceRaw && !l.qtyRaw) continue;   // skip a completely empty line
+    const n = i + 1;
+    if (!l.name) { toastErr('Line ' + n + ': enter the product name'); return; }
+    if (l.priceRaw === '' || poNum(l.priceRaw) < 0) { toastErr('Line ' + n + ': enter a unit price (0 or more)'); return; }
+    if (l.qtyRaw === '' || poNum(l.qtyRaw) <= 0) { toastErr('Line ' + n + ': quantity must be more than 0'); return; }
+    const vat = l.vatRaw === '' ? 0 : poNum(l.vatRaw);
+    if (vat < 0 || vat > 100) { toastErr('Line ' + n + ': VAT % must be between 0 and 100'); return; }
+    items.push({ product_name: l.name, brand: l.brand || null, unit_price: poNum(l.priceRaw), qty_ordered: poNum(l.qtyRaw), vat_percent: vat });
+  }
+  if (!items.length) { toastErr('Add at least one line item'); return; }
+
+  const payload = {
+    supplier_id: parseInt(supplier, 10),
+    order_date: orderDate,
+    expected_date: expected || null,
+    notes: $('#po-notes').value.trim() || null,
+    status: $('#po-status').value,
+    items: items
+  };
+  const btn = $('#po-save-btn');
+  btn.disabled = true;
+  try {
+    const saved = await api(editingPOId ? '/api/purchase-orders/' + editingPOId : '/api/purchase-orders', {
+      method: editingPOId ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    toastOk((editingPOId ? 'Purchase order saved: ' : 'Purchase order created: ') + (saved && saved.po_number ? saved.po_number : ''));
+    closePOModal();
+    await loadPurchaseOrders();
+  } catch (err) {
+    toastErr(err.message || 'Could not save purchase order');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function cancelPO() {
+  if (!isAdmin() || !editingPOId) return;
+  if (!confirm('Cancel this purchase order? This cannot be undone.')) return;
+  const btn = $('#po-cancel-order-btn');
+  btn.disabled = true;
+  try {
+    await api('/api/purchase-orders/' + editingPOId + '/cancel', { method: 'POST' });
+    toastOk('Purchase order cancelled');
+    closePOModal();
+    await loadPurchaseOrders();
+  } catch (err) {
+    toastErr(err.message || 'Could not cancel purchase order');
+    btn.disabled = false;
+  }
+}
+
+// ---------- receive goods (GRN) ----------
+async function openReceiveModal(poId) {
+  if (!isAdmin()) return;
+  let po;
+  try {
+    po = await api('/api/purchase-orders/' + parseInt(poId, 10));
+  } catch (err) {
+    toastErr(err.message || 'Could not open purchase order');
+    return;
+  }
+  if (!po || ['Draft', 'Sent', 'Partial'].indexOf(po.status) === -1) {
+    toastErr('Goods can only be received on Draft, Sent or Partial orders');
+    return;
+  }
+  receivingPO = po;
+  $('#grn-title').textContent = 'Receive Goods: ' + po.po_number;
+  $('#grn-notes').value = '';
+  $('#grn-rows').innerHTML = (po.items || []).map(it => {
+    const remaining = Math.max(0, poRound(poNum(it.qty_ordered) - poNum(it.qty_received)));
+    return '<tr style="cursor:default;" data-id="' + it.id + '" data-remaining="' + remaining + '" data-name="' + poEsc(it.product_name) + '">'
+      + '<td class="name">' + poEsc(it.product_name) + (it.brand ? ' <span style="color:var(--sub); font-weight:400;">(' + poEsc(it.brand) + ')</span>' : '') + '</td>'
+      + '<td style="text-align:right;">' + poEsc(it.qty_ordered) + '</td>'
+      + '<td style="text-align:right;">' + poEsc(it.qty_received) + '</td>'
+      + '<td style="text-align:right;">' + remaining + '</td>'
+      + '<td style="text-align:right;"><input type="number" class="grn-qty" step="0.01" min="0" max="' + remaining + '" value="' + remaining + '"' + (remaining <= 0 ? ' disabled' : '') + '></td>'
+      + '</tr>';
+  }).join('');
+  $('#grn-confirm-btn').disabled = false;
+  $('#grn-overlay').classList.add('show');
+}
+
+function closeReceiveModal() {
+  $('#grn-overlay').classList.remove('show');
+  receivingPO = null;
+}
+
+async function submitGRN(e) {
+  e.preventDefault();
+  if (!isAdmin() || !receivingPO) return;
+  const poId = receivingPO.id;
+  const items = [];
+  const rows = Array.from(document.querySelectorAll('#grn-rows tr[data-id]'));
+  for (let i = 0; i < rows.length; i++) {
+    const tr = rows[i];
+    const input = tr.querySelector('.grn-qty');
+    if (input.disabled) continue;
+    const raw = input.value.trim();
+    const qty = raw === '' ? 0 : parseFloat(raw);
+    const remaining = parseFloat(tr.dataset.remaining);
+    if (!isFinite(qty) || qty < 0) { toastErr(tr.dataset.name + ': enter 0 or more'); return; }
+    if (qty > remaining + 0.0001) { toastErr(tr.dataset.name + ': only ' + remaining + ' is still outstanding'); return; }
+    if (qty > 0) items.push({ item_id: parseInt(tr.dataset.id, 10), qty_received: qty });
+  }
+  if (!items.length) { toastErr('Enter a quantity for at least one item'); return; }
+
+  const btn = $('#grn-confirm-btn');
+  btn.disabled = true;
+  try {
+    const saved = await api('/api/purchase-orders/' + poId + '/receive', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: items, notes: $('#grn-notes').value.trim() || null })
+    });
+    const grns = (saved && saved.grns) || [];
+    const last = grns.length ? grns[grns.length - 1].grn_number : '';
+    toastOk('Goods received' + (last ? ': ' + last : '') + ' (status: ' + (saved && saved.status ? saved.status : '') + ')');
+    closeReceiveModal();
+    await loadPurchaseOrders();
+    await loadAll();
+  } catch (err) {
+    toastErr(err.message || 'Could not receive goods');
+    btn.disabled = false;
+  }
+}
+
+(function wirePurchasing() {
+  const byId = x => document.getElementById(x);
+  if (!byId('new-po-btn') || !byId('po-overlay') || !byId('grn-overlay')) return;
+  byId('new-po-btn').addEventListener('click', () => openPOModal(null));
+  byId('po-filter').addEventListener('change', renderPOList);
+  byId('po-form').addEventListener('submit', savePO);
+  byId('po-close-btn').addEventListener('click', closePOModal);
+  byId('po-cancel-order-btn').addEventListener('click', cancelPO);
+  byId('po-add-line').addEventListener('click', () => {
+    byId('po-items-wrap').insertAdjacentHTML('beforeend', poRowHtml({}));
+    recalcPOTotals();
+  });
+  byId('po-items-wrap').addEventListener('input', e => {
+    if (e.target.classList.contains('po-name')) {
+      const typed = e.target.value.trim().toLowerCase();
+      const match = (typeof inventory !== 'undefined' ? inventory : []).find(it => (it.product || '').toLowerCase() === typed);
+      if (match) {
+        const brand = e.target.closest('.po-row').querySelector('.po-brand');
+        if (!brand.value) brand.value = match.brand || '';
+      }
+    }
+    recalcPOTotals();
+  });
+  byId('po-items-wrap').addEventListener('click', e => {
+    if (e.target.classList.contains('rm') && poEditable) {
+      e.target.closest('.po-row').remove();
+      recalcPOTotals();
+    }
+  });
+  byId('grn-form').addEventListener('submit', submitGRN);
+  byId('grn-cancel-btn').addEventListener('click', closeReceiveModal);
+  document.querySelectorAll('.nav-item').forEach(btn => {
+    if (btn.dataset.view === 'purchasing') btn.addEventListener('click', loadPurchaseOrders);
+  });
+})();
+
+// ==========================================================
+// PDF IMPORT: SUPPLIER LINK (ERP Phase 3, Stage C)
+// ==========================================================
+function impNormName(s) {
+  return String(s == null ? '' : s).toLowerCase().replace(/\s+/g, ' ').trim();
+}
+function impEsc(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// Asks the server to link every imported bill that has no supplier yet (matched by supplier name).
+// Never blocks the import: if it fails, the bill is still imported and can be linked later.
+async function linkImportedBills() {
+  try {
+    const res = await api('/api/suppliers/link-bills', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}'
+    });
+    const n = res && typeof res.linked === 'number' ? res.linked : 0;
+    if (n > 0) toast('Linked ' + n + ' bill(s) to their supplier', 'info', 4000);
+  } catch (err) {
+    /* optional step */
+  }
+}
+
+// Puts a "Linked to supplier" / "Create supplier from this PDF" box at the top of the import preview.
+function showSupplierLinkBox(d) {
+  const body = $('#import-preview-body');
+  if (!body) return;
+  body.insertAdjacentHTML('afterbegin',
+    '<div id="import-supplier-box" style="margin-bottom:14px; padding:10px 12px; border:1px solid var(--line); border-radius:12px; font-size:13px;">Checking supplier...</div>');
+  const box = document.getElementById('import-supplier-box');
+  const vendor = d && d.vendor;
+  const name = vendor && vendor.name ? String(vendor.name).trim() : '';
+  if (!name) {
+    box.textContent = 'No supplier was detected on this PDF, so the bill will not be linked to a supplier.';
+    return;
+  }
+  (async () => {
+    let list = [];
+    try {
+      const r = await api('/api/suppliers');
+      list = Array.isArray(r) ? r : [];
+    } catch (err) {
+      box.textContent = 'Could not check suppliers: ' + (err.message || 'unknown error');
+      return;
+    }
+    const key = impNormName(name);
+    const match = list.filter(s => impNormName(s.name) === key);
+    if (match.length === 1) {
+      box.innerHTML = 'Linked to supplier: <strong>' + impEsc(match[0].name) + '</strong>' + (match[0].is_active ? '' : ' (inactive)');
+      box.style.borderColor = 'var(--pine)';
+      return;
+    }
+    if (match.length > 1) {
+      box.textContent = 'More than one supplier is named "' + name + '", so this bill cannot be linked automatically. Rename one of them in Suppliers.';
+      return;
+    }
+    if (!isAdmin()) {
+      box.textContent = 'No supplier named "' + name + '" exists yet.';
+      return;
+    }
+    box.innerHTML = 'No supplier named <strong>' + impEsc(name) + '</strong> yet. '
+      + '<button type="button" class="btn sm" id="import-create-supplier-btn" style="margin-left:8px;">Create supplier from this PDF</button>';
+    const btn = document.getElementById('import-create-supplier-btn');
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      const payload = { name: name };
+      if (vendor.trn) payload.trn = String(vendor.trn).trim();
+      if (vendor.address) payload.address = String(vendor.address).trim();
+      try {
+        const created = await api('/api/suppliers/from-parsed', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        box.innerHTML = 'Supplier created: <strong>' + impEsc(created && created.name ? created.name : name) + '</strong>. This bill will be linked to it when you confirm the import.';
+        box.style.borderColor = 'var(--pine)';
+        toastOk('Supplier created');
+        await linkImportedBills();
+      } catch (err) {
+        btn.disabled = false;
+        toastErr(err.message || 'Could not create supplier');
+      }
+    });
+  })();
+}
+
+// ==========================================================
+// COMPANY CURRENCY (ERP Phase 4.5): the invoice currency follows the issuing company and is locked
+// ==========================================================
+function applyCompanyCurrency(inv) {
+  const sel = $('#f-currency');
+  if (!sel) return;
+  let cur = '';
+  if (inv && inv.currency) {
+    cur = inv.currency;                                  // existing document keeps its own currency
+  } else {
+    const c = companies.find(x => String(x.id) === $('#f-company').value);
+    cur = (c && c.currency) || '';                       // '' = server did not send a currency
+  }
+  if (cur) {
+    sel.value = cur;
+    sel.disabled = true;
+    sel.title = 'Set by the issuing company. Change it in the Company tab.';
+  } else {
+    sel.disabled = false;                                // safe fallback: never force a wrong currency
+    sel.title = '';
+  }
+}
+(function wireCompanyCurrency() {
+  const co = $('#f-company');
+  if (!co) return;
+  co.addEventListener('change', () => { applyCompanyCurrency(null); recalcModalTotals(); });
+})();
+
+// ==========================================================
+// REPORTS (ERP Phase 5)
+// ==========================================================
+let rptCurrent = 'inventory-valuation';
+let rptSeq = 0;                 // ignores answers that arrive after the user already switched tab
+let rptAgingData = null;
+let rptAgingFilter = '';
+
+function rptEsc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function rptYMD(d) {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function rptCard(label, value, cls, extra) {
+  return `<div class="stat ${cls || ''}"${extra || ''}><div class="stat-label">${label}</div><div class="stat-value">${value}</div></div>`;
+}
+function rptSetContent(html) {
+  const el = document.getElementById('report-content');
+  if (el) el.innerHTML = html;
+}
+function rptError(err) {
+  rptSetContent('<div class="empty" style="color:var(--danger);">' + rptEsc((err && err.message) || 'Could not load this report.') + '</div>');
+}
+
+function switchReportTab(reportType) {
+  const valid = ['inventory-valuation', 'stock-aging', 'sales-summary'];
+  rptCurrent = valid.indexOf(reportType) >= 0 ? reportType : 'inventory-valuation';
+  document.querySelectorAll('#report-tabs .report-tab').forEach(b => {
+    b.classList.toggle('active', b.dataset.report === rptCurrent);
+  });
+  const filters = document.getElementById('report-filters');
+  if (filters) filters.style.display = rptCurrent === 'sales-summary' ? 'flex' : 'none';
+  rptSetContent('<div class="empty">Loading...</div>');
+  if (rptCurrent === 'inventory-valuation') loadInventoryValuation();
+  else if (rptCurrent === 'stock-aging') loadStockAging();
+  else loadSalesSummary();
+}
+
+// ---------- Inventory valuation ----------
+async function loadInventoryValuation() {
+  const seq = ++rptSeq;
+  let d;
+  try { d = await api('/api/reports/inventory-valuation'); }
+  catch (err) { if (seq === rptSeq) rptError(err); return; }
+  if (seq !== rptSeq) return;
+  const th = 'style="text-align:right;"';
+  const cur = d.currency || 'USD';
+  const scope = d.scope || {};
+  const items = d.items || [];
+  const guess = Number(d.items_without_purchase_cost || 0);
+  const note = guess
+    ? `<div class="rpt-note">${guess} product${guess === 1 ? '' : 's'} never received on a purchase order, so the selling price is used as the cost (marked <b>Selling price</b> below).</div>`
+    : '';
+  const scopeNote = `<div class="rpt-note">Valued in <b>${rptEsc(cur)}</b>${scope.company_name ? ' (' + rptEsc(scope.company_name) + ')' : ''}. Stock is shared by all companies and purchase orders have no currency of their own, so all amounts here are taken as ${rptEsc(cur)}.</div>`;
+  const cards = '<div class="stats">'
+    + rptCard('Total stock value (at cost)', fmt(d.total_value, cur), 'stat-c-pine')
+    + rptCard('Products in stock', d.total_items || 0, 'stat-c-blue')
+    + rptCard('Total units', Number(d.total_units || 0).toLocaleString(undefined, { maximumFractionDigits: 2 }), 'stat-c-amber')
+    + '</div>';
+  let table = '<div class="empty">No stock on hand.</div>';
+  if (items.length) {
+    const rows = items.map(i => `<tr>
+      <td class="name">${rptEsc(i.product_name)}</td>
+      <td ${th}>${Number(i.balance).toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
+      <td ${th}>${fmt(i.unit_cost, cur)}</td>
+      <td ${th}>${fmt(i.total_value, cur)}</td>
+      <td>${i.cost_source === 'purchase' ? '<span class="rpt-pill rpt-ok">Purchase</span>' : '<span class="rpt-pill rpt-warn">Selling price</span>'}</td>
+    </tr>`).join('');
+    table = `<div style="overflow-x:auto;"><table>
+      <thead><tr><th>Product</th><th ${th}>Balance</th><th ${th}>Unit cost</th><th ${th}>Total value</th><th>Cost source</th></tr></thead>
+      <tbody>${rows}<tr style="font-weight:700; background:var(--grey-soft);"><td>TOTAL</td><td></td><td></td><td ${th}>${fmt(d.total_value, cur)}</td><td></td></tr></tbody>
+    </table></div>`;
+  }
+  rptSetContent(cards + scopeNote + note + table);
+}
+
+// ---------- Stock aging ----------
+const RPT_GROUPS = {
+  fast: { label: 'Fast-moving', hint: 'received < 30 days ago', cls: 'stat-c-pine', pill: 'rpt-ok' },
+  slow: { label: 'Slow-moving', hint: '30 to 90 days', cls: 'stat-c-amber', pill: 'rpt-warn' },
+  dead: { label: 'Dead stock', hint: 'more than 90 days', cls: 'stat-c-red', pill: 'rpt-bad' }
+};
+
+async function loadStockAging() {
+  const seq = ++rptSeq;
+  let d;
+  try { d = await api('/api/reports/stock-aging'); }
+  catch (err) { if (seq === rptSeq) rptError(err); return; }
+  if (seq !== rptSeq) return;
+  rptAgingData = d;
+  rptAgingFilter = '';
+  renderStockAging();
+}
+
+function renderStockAging() {
+  const d = rptAgingData;
+  if (!d) return;
+  const th = 'style="text-align:right;"';
+  const cur = d.currency || 'USD';
+  const s = d.summary || {};
+  const cards = '<div class="stats">' + ['fast', 'slow', 'dead'].map(k => {
+    const g = RPT_GROUPS[k], v = s[k] || { count: 0, units: '0.00', value: '0.00' };
+    return `<div class="stat ${g.cls} rpt-clickable${rptAgingFilter === k ? ' rpt-selected' : ''}" data-aging="${k}" title="Click to show only these products">
+      <div class="stat-label">${g.label} <span style="font-weight:400;">(${g.hint})</span></div>
+      <div class="stat-value">${v.count} <span style="font-size:14px; font-weight:400;">products</span></div>
+      <div style="font-size:12px; color:var(--sub); margin-top:4px;">Value ${fmt(v.value, cur)}</div></div>`;
+  }).join('') + '</div>';
+  const note = '<div class="rpt-note">Shows how long ago each product last <b>arrived</b> (opening stock or Stock In). It does not measure how fast it sells. Click a card to filter.</div>';
+  const all = d.items || [];
+  const items = rptAgingFilter ? all.filter(i => i.category === rptAgingFilter) : all;
+  let table = '<div class="empty">No products to show.</div>';
+  if (items.length) {
+    const rows = items.map(i => {
+      const g = RPT_GROUPS[i.category] || RPT_GROUPS.fast;
+      const approx = i.basis === 'stock_in' ? '' : ' <span title="No stock-in record, date is an estimate" style="color:var(--sub);">~</span>';
+      return `<tr>
+        <td class="name">${rptEsc(i.product_name)}</td>
+        <td ${th}>${Number(i.balance).toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
+        <td>${rptEsc(i.last_movement_date)}${approx}</td>
+        <td ${th}>${i.days_since_last_movement}</td>
+        <td ${th}>${fmt(i.total_value, cur)}</td>
+        <td><span class="rpt-pill ${g.pill}">${g.label}</span></td>
+      </tr>`;
+    }).join('');
+    table = `<div style="overflow-x:auto;"><table>
+      <thead><tr><th>Product</th><th ${th}>Balance</th><th>Last stock in</th><th ${th}>Days</th><th ${th}>Value</th><th>Status</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>`;
+  }
+  rptSetContent(cards + note + table);
+}
+
+// ---------- Sales summary ----------
+function rptQuickRange(kind) {
+  const now = new Date();
+  let from = '', to = '';
+  if (kind === 'this-month') { from = rptYMD(new Date(now.getFullYear(), now.getMonth(), 1)); to = rptYMD(new Date(now.getFullYear(), now.getMonth() + 1, 0)); }
+  else if (kind === 'last-month') { from = rptYMD(new Date(now.getFullYear(), now.getMonth() - 1, 1)); to = rptYMD(new Date(now.getFullYear(), now.getMonth(), 0)); }
+  else if (kind === 'this-year') { from = now.getFullYear() + '-01-01'; to = now.getFullYear() + '-12-31'; }
+  const f = document.getElementById('rpt-from'), t = document.getElementById('rpt-to');
+  if (f) f.value = from;
+  if (t) t.value = to;
+  loadSalesSummary();
+}
+
+async function loadSalesSummary() {
+  const seq = ++rptSeq;
+  const from = (document.getElementById('rpt-from') || {}).value || '';
+  const to = (document.getElementById('rpt-to') || {}).value || '';
+  if (from && to && from > to) { rptSetContent('<div class="empty" style="color:var(--danger);">"From" must not be after "To".</div>'); return; }
+  const params = new URLSearchParams();
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  const qs = params.toString();
+  let d;
+  try { d = await api('/api/reports/sales-summary' + (qs ? '?' + qs : '')); }
+  catch (err) { if (seq === rptSeq) rptError(err); return; }
+  if (seq !== rptSeq) return;
+  const th = 'style="text-align:right;"';
+  const blocks = d.by_company || [];
+  const period = (from || to) ? `${rptEsc(from || 'start')} to ${rptEsc(to || 'today')}` : 'all time';
+  const note = `<div class="rpt-note">Invoices with status Sent, Paid or Overdue, by issue date (${period}). Quotations and Drafts are not counted. Revenue = invoice total minus VAT. Each company and currency is shown separately and never added together.</div>`;
+  if (!blocks.length) { rptSetContent(note + '<div class="empty">No invoices in this period.</div>'); return; }
+  const html = blocks.map(b => {
+    const cur = b.currency || 'USD';
+    const heading = `<div class="section-title">${rptEsc(b.company_name)} &mdash; ${rptEsc(cur)}</div>`;
+    const cards = '<div class="stats">'
+      + rptCard('Revenue (ex VAT)', fmt(b.revenue, cur), 'stat-c-pine')
+      + rptCard('VAT', fmt(b.vat, cur), 'stat-c-amber')
+      + rptCard('Total incl. VAT', fmt(b.total, cur), 'stat-c-blue')
+      + rptCard('Invoices', b.invoice_count, 'stat-c-red')
+      + '</div>';
+    const rows = (b.clients || []).map(c => `<tr>
+      <td class="name">${rptEsc(c.client_name)}</td>
+      <td ${th}>${c.invoice_count}</td>
+      <td ${th}>${fmt(c.revenue, cur)}</td>
+      <td ${th}>${fmt(c.vat, cur)}</td>
+      <td ${th}>${fmt(c.total_amount, cur)}</td>
+    </tr>`).join('');
+    return heading + cards + `<div style="overflow-x:auto;"><table>
+      <thead><tr><th>Client</th><th ${th}>Invoices</th><th ${th}>Revenue</th><th ${th}>VAT</th><th ${th}>Total</th></tr></thead>
+      <tbody>${rows}<tr style="font-weight:700; background:var(--grey-soft);"><td>TOTAL</td><td ${th}>${b.invoice_count}</td><td ${th}>${fmt(b.revenue, cur)}</td><td ${th}>${fmt(b.vat, cur)}</td><td ${th}>${fmt(b.total, cur)}</td></tr></tbody>
+    </table></div>`;
+  }).join('');
+  rptSetContent(note + html);
+}
+
+(function wireReports() {
+  document.querySelectorAll('#report-tabs .report-tab').forEach(b => {
+    b.addEventListener('click', () => switchReportTab(b.dataset.report));
+  });
+  document.querySelectorAll('[data-rpt-quick]').forEach(b => {
+    b.addEventListener('click', () => rptQuickRange(b.dataset.rptQuick));
+  });
+  const apply = document.getElementById('rpt-apply');
+  if (apply) apply.addEventListener('click', () => loadSalesSummary());
+  const content = document.getElementById('report-content');
+  if (content) content.addEventListener('click', e => {
+    const card = e.target.closest('[data-aging]');
+    if (!card) return;
+    rptAgingFilter = (rptAgingFilter === card.dataset.aging) ? '' : card.dataset.aging;
+    renderStockAging();
+  });
+  document.querySelectorAll('.nav-item').forEach(btn => {
+    if (btn.dataset.view !== 'reports') return;
+    btn.addEventListener('click', () => {
+      const f = document.getElementById('rpt-from'), t = document.getElementById('rpt-to');
+      if (f && t && !f.value && !t.value) {   // first visit: default the sales range to this month
+        const now = new Date();
+        f.value = rptYMD(new Date(now.getFullYear(), now.getMonth(), 1));
+        t.value = rptYMD(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+      }
+      switchReportTab(rptCurrent);
+    });
+  });
+})();
+// ==========================================================
+// SIDEBAR GROUPS (click a heading to open or close its tabs)
+// ==========================================================
+(function navGroups() {
+  var nav = document.querySelector('.rail nav');
+  if (!nav) return;
+  var heads = Array.prototype.slice.call(nav.querySelectorAll('.nav-section'));
+  if (!heads.length) return;
+  var KEY = 'navOpenGroups';
+  var open = [];
+  try { var raw = localStorage.getItem(KEY); if (raw) open = JSON.parse(raw); } catch (e) { open = []; }
+  if (!Array.isArray(open)) open = [];
+  var groups = heads.map(function (h, i) {
+    var items = [];
+    var n = h.nextElementSibling;
+    while (n && !n.classList.contains('nav-section')) {
+      if (n.classList.contains('nav-item')) items.push(n);
+      n = n.nextElementSibling;
+    }
+    return { head: h, items: items, name: h.textContent.trim(), fixed: i === 0 };   // first group (Dashboard) is always open
+  });
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(open)); } catch (e) {} }
+  function render() {
+    groups.forEach(function (g) {
+      var isOpen = g.fixed || open.indexOf(g.name) >= 0;
+      g.head.classList.toggle('nav-open', isOpen);
+      g.head.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      g.items.forEach(function (b) { b.classList.toggle('nav-collapsed', !isOpen); });
+    });
+  }
+  function toggle(g) {
+    var i = open.indexOf(g.name);
+    if (i >= 0) open.splice(i, 1); else open.push(g.name);
+    save(); render();
+  }
+  function openGroupOf(btn) {
+    groups.forEach(function (g) {
+      if (!g.fixed && g.items.indexOf(btn) >= 0 && open.indexOf(g.name) < 0) { open.push(g.name); save(); }
+    });
+  }
+  groups.forEach(function (g) {
+    if (g.fixed) { g.head.classList.add('nav-fixed'); return; }
+    g.head.setAttribute('role', 'button');
+    g.head.setAttribute('tabindex', '0');
+    g.head.addEventListener('click', function () { toggle(g); });
+    g.head.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(g); }
+    });
+  });
+  nav.addEventListener('click', function (e) {
+    var b = e.target.closest ? e.target.closest('.nav-item') : null;
+    if (b) { openGroupOf(b); render(); }
+  });
+  var act = nav.querySelector('.nav-item.active');
+  if (act) openGroupOf(act);
+  render();
+})();
+// ==========================================================
+// SIDEBAR ACTIVE COLOR (the heading of the open page turns green)
+// ==========================================================
+(function navActiveGroup() {
+  var nav = document.querySelector('.rail nav');
+  if (!nav) return;
+  function sync() {
+    var heads = nav.querySelectorAll('.nav-section');
+    Array.prototype.forEach.call(heads, function (h) {
+      var has = false;
+      var n = h.nextElementSibling;
+      while (n && !n.classList.contains('nav-section')) {
+        if (n.classList.contains('nav-item') && n.classList.contains('active')) has = true;
+        n = n.nextElementSibling;
+      }
+      h.classList.toggle('nav-has-active', has);
+    });
+  }
+  nav.addEventListener('click', function () { setTimeout(sync, 0); });
+  sync();
+})();
+// ==========================================================
+// SIDEBAR GROUP COLORS (each section has its own color)
+// ==========================================================
+(function navGroupColors() {
+  var nav = document.querySelector('.rail nav');
+  if (!nav) return;
+  var map = { 'main menu': 'ng-main', 'sales': 'ng-sales', 'purchasing': 'ng-purchasing', 'inventory': 'ng-inventory', 'reports': 'ng-reports', 'settings': 'ng-settings' };
+  Array.prototype.forEach.call(nav.querySelectorAll('.nav-section'), function (h) {
+    var cls = map[h.textContent.trim().toLowerCase()];
+    if (!cls) return;
+    h.classList.add('ng', cls);
+    var n = h.nextElementSibling;
+    while (n && !n.classList.contains('nav-section')) {
+      if (n.classList.contains('nav-item')) n.classList.add('ng', cls);
+      n = n.nextElementSibling;
+    }
+  });
+})();
 // --- Low-stock bell ---
 function renderInventoryChart() {
   const container = document.getElementById('inventory-chart');
@@ -3047,6 +4053,7 @@ $('#import-pdf-file').addEventListener('change', async (e) => {
     const body = await res.json();
     if (!res.ok || body.error) throw new Error(body.message || `HTTP ${res.status}`);
     renderImportPreview(body.data);
+    showSupplierLinkBox(body.data);
     $('#import-preview-overlay').classList.add('show');
   } catch (err) {
     toastErr('Parse failed: ' + err.message);
@@ -3095,6 +4102,7 @@ $('#confirm-import-btn').addEventListener('click', async () => {
       toast('Already imported (duplicate)', 'info');
     } else {
       toastOk('PDF imported successfully');
+      await linkImportedBills();
     }
     $('#import-preview-overlay').classList.remove('show');
     await loadAll();
@@ -3118,7 +4126,7 @@ async function loadSupplierBills() {
         <td>${inv.imported_at ? inv.imported_at.slice(0, 10) : '—'}</td>
       </tr>
     `).join('');
-    $('#supplier-rows').innerHTML = rows || '<tr><td colspan="6" class="empty">No supplier invoices yet. Go to Invoices → "Import supplier PDF" to add one.</td></tr>';
+    $('#supplier-rows').innerHTML = rows || '<tr><td colspan="6" class="empty">No supplier invoices yet. Go to Suppliers and click Upload supplier PDF to add one.</td></tr>';
   } catch (err) {
     toastErr('Failed to load supplier bills: ' + err.message);
   }
