@@ -598,8 +598,12 @@ class Account(db.Model):
 
     __tablename__ = "accounts"
 
+    __table_args__ = (db.UniqueConstraint("company_id", "code", name="uq_accounts_company_code"),)
+
     id = db.Column(db.Integer, primary_key=True)
-    code = db.Column(db.String(20), nullable=False, unique=True)
+    # each company keeps its own books (and currency): accounts belong to one company
+    company_id = db.Column(db.Integer, db.ForeignKey("company.id", ondelete="RESTRICT"), nullable=False, index=True)
+    code = db.Column(db.String(20), nullable=False)
     name = db.Column(db.String(100), nullable=False)
     type = db.Column(
         db.Enum("Asset", "Liability", "Equity", "Income", "Expense", name="account_type"),
@@ -612,6 +616,7 @@ class Account(db.Model):
     def to_dict(self) -> dict:
         return {
             "id": self.id,
+            "company_id": self.company_id,
             "code": self.code,
             "name": self.name,
             "type": self.type,
@@ -630,7 +635,19 @@ class JournalEntry(db.Model):
 
     __tablename__ = "journal_entries"
 
+    # the same invoice / payment can never post twice for the same company's books
+    __table_args__ = (
+        db.UniqueConstraint("source_type", "source_id", "company_id", name="uq_journal_source"),
+    )
+
     id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, db.ForeignKey("company.id", ondelete="RESTRICT"), nullable=False, index=True)
+    source_type = db.Column(
+        db.Enum("manual", "invoice", "payment", "invoice_reversal", "payment_reversal", name="journal_source_type"),
+        nullable=False, default="manual", index=True,
+    )
+    source_id = db.Column(db.Integer, nullable=True)       # id of the invoice / payment it came from
+    source_ref = db.Column(db.String(100), nullable=True)  # invoice number or payment reference
     entry_number = db.Column(db.String(50), nullable=False, unique=True)
     entry_date = db.Column(db.Date, nullable=False, index=True)
     reference = db.Column(db.String(100))
@@ -652,6 +669,10 @@ class JournalEntry(db.Model):
         credit = sum((Decimal(str(ln.credit or 0)) for ln in self.lines), Decimal("0"))
         data = {
             "id": self.id,
+            "company_id": self.company_id,
+            "source_type": self.source_type or "manual",
+            "source_id": self.source_id,
+            "source_ref": self.source_ref,
             "entry_number": self.entry_number,
             "entry_date": self.entry_date.isoformat() if self.entry_date else None,
             "reference": self.reference,

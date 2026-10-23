@@ -13,6 +13,8 @@ Registered in app.py with url_prefix="/api/accounting":
   DELETE /api/accounting/journals/<id>            deletes a Draft
   POST   /api/accounting/journals/<id>/post       Draft -> Posted (then locked)
   POST   /api/accounting/journals/<id>/reverse    Posted -> Reversed + new reversing journal
+  POST   /api/accounting/seed-starter-accounts    starter chart for each company (skips existing)
+  GET    /api/accounting/trial-balance            ?company_id=<id>&as_of=YYYY-MM-DD
 
 Rules
   - ADMIN ONLY, for reading too. A valid admin token is always required (checked
@@ -21,6 +23,10 @@ Rules
   - Every line has either a debit or a credit (never both, never both zero, never negative).
   - A reversal swaps debit and credit on every line (amounts stay positive, which is
     how accountants do it), is created as Posted, and the original becomes Reversed.
+  - Each company keeps its own books: accounts and journals belong to one company, and every
+    line of a journal must use an account of that same company (so USD and AED never mix).
+  - Journals that come from an invoice or payment (source_type other than 'manual', from Wave 2B)
+    are locked: they can only be reversed through their invoice or payment.
   - Nothing here touches invoices, inventory, purchase orders or clients.
 """
 
@@ -32,10 +38,11 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from functools import wraps
 
 from flask import Blueprint, g, request
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from extensions import db
-from models import Account, JournalEntry, JournalLine
+from models import Account, Company, JournalEntry, JournalLine
 from utils.auth import get_current_user
 from utils.responses import api_response
 
@@ -46,6 +53,23 @@ CODE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,19}$")
 CENT = Decimal("0.01")
 MAX_AMOUNT = Decimal("9999999999.99")  # DECIMAL(12,2)
 LINE_FIELDS = {"account_id", "debit", "credit", "description"}
+
+STARTER_ACCOUNTS = (
+    ("1000", "Cash in Hand", "Asset"),
+    ("1100", "Bank Account", "Asset"),
+    ("1200", "Accounts Receivable", "Asset"),
+    ("1300", "Inventory", "Asset"),
+    ("1400", "VAT Receivable", "Asset"),
+    ("2000", "Accounts Payable", "Liability"),
+    ("2100", "VAT Payable", "Liability"),
+    ("3000", "Retained Earnings", "Equity"),
+    ("4000", "Sales Revenue", "Income"),
+    ("5000", "Cost of Goods Sold", "Expense"),
+    ("5100", "Inventory Loss", "Expense"),
+    ("5200", "Stock Adjustment Expense", "Expense"),
+    ("5300", "Payment Discounts", "Expense"),
+    ("6000", "Bank Charges", "Expense"),
+)
 
 
 # ---------------------------------------------------------------------
@@ -193,13 +217,17 @@ def check_lines(raw_lines):
     return clean, None
 
 
-def _check_accounts_usable(account_ids):
-    """Every account must exist and be active. Returns an error message or None."""
+def _check_accounts_usable(account_ids, company_id):
+    """Every account must exist, belong to this company and be active. Returns an error message or None."""
     ids = set(account_ids)
     found = {a.id: a for a in Account.query.filter(Account.id.in_(ids)).all()}
     missing = sorted(ids - set(found))
     if missing:
         return "Unknown account: " + ", ".join(str(i) for i in missing) + "."
+    foreign = [a.code for a in found.values() if a.company_id != company_id]
+    if foreign:
+        return ("These accounts belong to a different company than the journal: "
+                + ", ".join(sorted(foreign)) + ".")
     inactive = [a.code for a in found.values() if not a.is_active]
     if inactive:
         return "These accounts are switched off and cannot be used: " + ", ".join(sorted(inactive)) + "."
@@ -244,11 +272,20 @@ def _swapped(entry):
 # ---------------------------------------------------------------------
 def _clean_account_body(body: dict, existing=None):
     """Returns (values dict, error response). For an edit, only fields in body are returned."""
-    error = _check_fields(body, {"code", "name", "type", "is_active", "parent_id"})
+    error = _check_fields(body, {"company_id", "code", "name", "type", "is_active", "parent_id"})
     if error:
         return None, error
     values = {}
     creating = existing is None
+
+    if creating:
+        company, msg = _find_company(body.get("company_id"))
+        if msg:
+            return None, _err(400, "bad_request", msg)
+        values["company_id"] = company.id
+    elif "company_id" in body and body["company_id"] != existing.company_id:
+        return None, _err(400, "bad_request", "An account cannot be moved to another company.")
+    account_company_id = values["company_id"] if creating else existing.company_id
 
     if creating or "code" in body:
         code, msg = _clean_text(body.get("code"), "Code", 20, required=True)
@@ -279,6 +316,8 @@ def _clean_account_body(body: dict, existing=None):
             parent = Account.query.get(pid)
             if parent is None:
                 return None, _err(400, "bad_request", "Parent account not found.")
+            if parent.company_id != account_company_id:
+                return None, _err(400, "bad_request", "The parent account must belong to the same company.")
             if existing is not None:
                 # no loops: walk up from the chosen parent, we must never reach this account
                 node, hops = parent, 0
@@ -291,8 +330,18 @@ def _clean_account_body(body: dict, existing=None):
     return values, None
 
 
-def _code_taken(code: str, except_id=None) -> bool:
-    row = Account.query.filter(Account.code == code).first()
+def _find_company(value):
+    """(company, error message). Accepts a company id."""
+    if isinstance(value, bool) or not isinstance(value, int):
+        return None, "Choose a company."
+    company = Company.query.get(value)
+    if company is None:
+        return None, "Company not found."
+    return company, None
+
+
+def _code_taken(code: str, company_id: int, except_id=None) -> bool:
+    row = Account.query.filter(Account.company_id == company_id, Account.code == code).first()
     return row is not None and row.id != except_id
 
 
@@ -303,7 +352,13 @@ def _account_in_use(account_id: int) -> bool:
 @accounting_bp.route("/accounts", methods=["GET"])
 @admin_only
 def list_accounts():
-    accounts = Account.query.order_by(Account.code).all()
+    query = Account.query
+    raw = request.args.get("company_id")
+    if raw:
+        if not raw.isdigit():
+            return _err(400, "bad_request", "company_id must be a number.")
+        query = query.filter(Account.company_id == int(raw))
+    accounts = query.order_by(Account.company_id, Account.code).all()
     return api_response(data=[a.to_dict() for a in accounts]), 200
 
 
@@ -316,8 +371,8 @@ def create_account():
     values, error = _clean_account_body(body)
     if error:
         return error
-    if _code_taken(values["code"]):
-        return _err(409, "conflict", f"Account code {values['code']} already exists.")
+    if _code_taken(values["code"], values["company_id"]):
+        return _err(409, "conflict", f"Account code {values['code']} already exists for this company.")
     account = Account(is_active=True, **values)
     db.session.add(account)
     error = _commit()
@@ -338,8 +393,8 @@ def update_account(account_id: int):
     values, error = _clean_account_body(body, existing=account)
     if error:
         return error
-    if "code" in values and values["code"] != account.code and _code_taken(values["code"], account.id):
-        return _err(409, "conflict", f"Account code {values['code']} already exists.")
+    if "code" in values and values["code"] != account.code and _code_taken(values["code"], account.company_id, account.id):
+        return _err(409, "conflict", f"Account code {values['code']} already exists for this company.")
     if "type" in values and values["type"] != account.type and _account_in_use(account.id):
         return _err(409, "conflict", "This account already has journal lines, so its type cannot change.")
     for field, value in values.items():
@@ -366,6 +421,49 @@ def delete_account(account_id: int):
     return api_response(data={"id": account_id, "deleted": True}), 200
 
 
+@accounting_bp.route("/seed-starter-accounts", methods=["POST"])
+@admin_only
+def seed_starter_accounts():
+    """Create the 14 starter accounts for every company (or one company_id). Existing codes are skipped."""
+    raw = request.get_data(cache=True)
+    body = {}
+    if raw and raw.strip():
+        body, error = _json_object()
+        if error:
+            return error
+    error = _check_fields(body, {"company_id"})
+    if error:
+        return error
+    if body.get("company_id") is not None:
+        company, msg = _find_company(body["company_id"])
+        if msg:
+            return _err(400, "bad_request", msg)
+        companies = [company]
+    else:
+        companies = Company.query.order_by(Company.id).all()
+    if not companies:
+        return _err(400, "bad_request", "There is no company yet.")
+
+    created = skipped = 0
+    per_company = []
+    for company in companies:
+        have = {a.code for a in Account.query.filter(Account.company_id == company.id).all()}
+        c = s = 0
+        for code, name, acc_type in STARTER_ACCOUNTS:
+            if code in have:
+                s += 1
+                continue
+            db.session.add(Account(company_id=company.id, code=code, name=name, type=acc_type, is_active=True))
+            c += 1
+        created += c
+        skipped += s
+        per_company.append({"company_id": company.id, "company_name": company.name, "created": c, "skipped": s})
+    error = _commit()
+    if error:
+        return error
+    return api_response(data={"created": created, "skipped": skipped, "companies": per_company}), 200
+
+
 # ---------------------------------------------------------------------
 # journals
 # ---------------------------------------------------------------------
@@ -381,6 +479,11 @@ def _not_found():
 @admin_only
 def list_journals():
     query = JournalEntry.query
+    raw_company = request.args.get("company_id")
+    if raw_company:
+        if not raw_company.isdigit():
+            return _err(400, "bad_request", "company_id must be a number.")
+        query = query.filter(JournalEntry.company_id == int(raw_company))
     status = request.args.get("status")
     if status:
         if status not in ("Draft", "Posted", "Reversed"):
@@ -407,9 +510,10 @@ def get_journal(entry_id: int):
     return api_response(data=entry.to_dict(include_lines=True)), 200
 
 
-def _read_journal_body(body: dict, require_all: bool):
-    """Returns (entry_date, reference, description, clean_lines, error response)."""
-    error = _check_fields(body, {"entry_date", "reference", "description", "lines"})
+def _read_journal_body(body: dict, require_all: bool, company_id: int):
+    """Returns (entry_date, reference, description, clean_lines, error response).
+    company_id is the journal's company (lines must use that company's accounts)."""
+    error = _check_fields(body, {"company_id", "entry_date", "reference", "description", "lines"})
     if error:
         return None, None, None, None, error
     entry_date = reference = description = clean = None
@@ -429,7 +533,7 @@ def _read_journal_body(body: dict, require_all: bool):
         clean, msg = check_lines(body.get("lines"))
         if msg:
             return None, None, None, None, _err(400, "bad_request", msg)
-        msg = _check_accounts_usable(c["account_id"] for c in clean)
+        msg = _check_accounts_usable((c["account_id"] for c in clean), company_id)
         if msg:
             return None, None, None, None, _err(400, "bad_request", msg)
     return entry_date, reference, description, clean, None
@@ -441,13 +545,17 @@ def create_journal():
     body, error = _json_object()
     if error:
         return error
-    entry_date, reference, description, clean, error = _read_journal_body(body, require_all=True)
+    company, msg = _find_company(body.get("company_id"))
+    if msg:
+        return _err(400, "bad_request", msg)
+    entry_date, reference, description, clean, error = _read_journal_body(body, True, company.id)
     if error:
         return error
 
     entry = None
     for _attempt in range(3):  # a second admin saving at the same moment could take our number
         entry = JournalEntry(
+            company_id=company.id, source_type="manual",
             entry_number=_next_entry_number(entry_date.year), entry_date=entry_date,
             reference=reference, description=description, status="Draft",
             created_by=g.current_user.id,
@@ -479,7 +587,9 @@ def update_journal(entry_id: int):
     body, error = _json_object()
     if error:
         return error
-    entry_date, reference, description, clean, error = _read_journal_body(body, require_all=False)
+    if "company_id" in body and body["company_id"] != entry.company_id:
+        return _err(400, "bad_request", "A journal cannot be moved to another company.")
+    entry_date, reference, description, clean, error = _read_journal_body(body, False, entry.company_id)
     if error:
         return error
     if "entry_date" in body:
@@ -527,7 +637,7 @@ def post_journal(entry_id: int):
     clean, msg = check_lines(raw)
     if msg:
         return _err(400, "bad_request", msg)
-    msg = _check_accounts_usable(c["account_id"] for c in clean)
+    msg = _check_accounts_usable((c["account_id"] for c in clean), entry.company_id)
     if msg:
         return _err(400, "bad_request", msg)
     entry.status = "Posted"
@@ -549,6 +659,10 @@ def reverse_journal(entry_id: int):
         return _err(409, "conflict", "Only a Posted journal can be reversed. Delete a Draft instead.")
     if original.reversal_of_id is not None:
         return _err(409, "conflict", "This journal is itself a reversal and cannot be reversed again.")
+    if (original.source_type or "manual") != "manual":
+        return _err(409, "conflict",
+                    "This journal was created automatically from an invoice or payment. "
+                    "Change or delete that invoice or payment instead.")
 
     raw = request.get_data(cache=True)
     body = {}
@@ -575,6 +689,7 @@ def reverse_journal(entry_id: int):
     reversal = None
     for _attempt in range(3):
         reversal = JournalEntry(
+            company_id=original.company_id, source_type="manual",
             entry_number=_next_entry_number(rev_date.year), entry_date=rev_date,
             reference=f"REV {original.entry_number}"[:100], description=description,
             status="Posted", reversal_of_id=original.id, created_by=g.current_user.id,
@@ -598,3 +713,59 @@ def reverse_journal(entry_id: int):
         "reversal": reversal.to_dict(include_lines=True),
         "original": original.to_dict(),
     }), 201
+
+
+# ---------------------------------------------------------------------
+# trial balance
+# ---------------------------------------------------------------------
+@accounting_bp.route("/trial-balance", methods=["GET"])
+@admin_only
+def trial_balance():
+    """Posted journals only (a Reversed original is cancelled by its Posted reversal, so both count).
+    One company at a time, in that company's currency."""
+    raw = request.args.get("company_id")
+    if not raw or not raw.isdigit():
+        return _err(400, "bad_request", "company_id is required.")
+    company = Company.query.get(int(raw))
+    if company is None:
+        return _err(404, "not_found", "Company not found.")
+    as_of = None
+    if request.args.get("as_of"):
+        as_of, msg = parse_date(request.args["as_of"])
+        if msg:
+            return _err(400, "bad_request", f"'as_of': {msg}")
+
+    query = (
+        db.session.query(JournalLine.account_id, func.sum(JournalLine.debit), func.sum(JournalLine.credit))
+        .join(JournalEntry, JournalEntry.id == JournalLine.journal_entry_id)
+        .filter(JournalEntry.company_id == company.id, JournalEntry.status.in_(("Posted", "Reversed")))
+    )
+    if as_of:
+        query = query.filter(JournalEntry.entry_date <= as_of)
+    sums = {aid: (Decimal(str(d or 0)), Decimal(str(c or 0))) for aid, d, c in query.group_by(JournalLine.account_id)}
+
+    rows = []
+    total_debit = total_credit = Decimal("0.00")
+    for account in Account.query.filter(Account.company_id == company.id).order_by(Account.code).all():
+        debit, credit = sums.get(account.id, (Decimal("0.00"), Decimal("0.00")))
+        if debit == 0 and credit == 0:
+            continue
+        net = debit - credit
+        col_debit = net if net > 0 else Decimal("0.00")
+        col_credit = -net if net < 0 else Decimal("0.00")
+        total_debit += col_debit
+        total_credit += col_credit
+        rows.append({
+            "account_id": account.id, "code": account.code, "name": account.name, "type": account.type,
+            "debit": f"{col_debit:.2f}", "credit": f"{col_credit:.2f}",
+        })
+    return api_response(data={
+        "company_id": company.id,
+        "company_name": company.name,
+        "currency": getattr(company, "currency", None) or "USD",
+        "as_of": as_of.isoformat() if as_of else None,
+        "rows": rows,
+        "total_debit": f"{total_debit:.2f}",
+        "total_credit": f"{total_credit:.2f}",
+        "balanced": total_debit == total_credit,
+    }), 200

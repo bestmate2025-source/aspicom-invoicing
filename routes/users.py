@@ -13,6 +13,8 @@ Rules
     Only root itself can edit root or reset root's password.
   - Nobody can deactivate or delete their own account.
   - The last active administrator can never be demoted, deactivated or deleted.
+  - Roles: admin, manager, sales, store, accountant, user (view-only). What each may
+    change is set in utils/permissions.py.
   - Deleting a user only removes the login; invoices and other data stay.
   - password_hash is never returned. Generated passwords are returned once.
 """
@@ -28,7 +30,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from werkzeug.security import generate_password_hash
 
 from extensions import db
-from models import User
+from models import Company, User
 from utils.auth import get_current_user
 from utils.responses import api_response
 
@@ -36,7 +38,8 @@ users_bp = Blueprint("users", __name__)
 
 USERNAME_RE = re.compile(r"^[A-Za-z0-9_]{3,50}$")
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
-ROLES = ("admin", "user")
+ROLES = ("admin", "manager", "sales", "store", "accountant", "user")
+USER_FIELDS = {"username", "full_name", "email", "role", "phone", "job_title", "company_ids"}
 MIN_PASSWORD_LENGTH = 6
 # 12-character passwords made of easy-to-read characters (no 0/O, 1/l/I).
 PASSWORD_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789"
@@ -142,8 +145,39 @@ def _clean_email(value):
 
 def _clean_role(value):
     if not isinstance(value, str) or value not in ROLES:
-        return None, _err(400, "bad_request", "Role must be 'admin' or 'user'.")
+        return None, _err(400, "bad_request", "Role must be one of: " + ", ".join(ROLES) + ".")
     return value, None
+
+
+def _clean_text(value, label: str, max_len: int):
+    """Optional short text. Empty -> None."""
+    if value is None:
+        return None, None
+    if not isinstance(value, str):
+        return None, _err(400, "invalid_type", f"'{label}' must be a string.")
+    value = value.strip()
+    if value == "":
+        return None, None
+    if len(value) > max_len:
+        return None, _err(400, "bad_request", f"{label} must be {max_len} characters or fewer.")
+    return value, None
+
+
+def _clean_company_ids(value):
+    """List of company ids this person may use. Empty list / None = all companies.
+    Returns the value stored in users.company_ids ("1,3" or None)."""
+    if value is None:
+        return None, None
+    if not isinstance(value, list) or any(isinstance(v, bool) or not isinstance(v, int) for v in value):
+        return None, _err(400, "bad_request", "'company_ids' must be a list of company ids.")
+    ids = sorted(set(value))
+    if not ids:
+        return None, None
+    found = {c.id for c in Company.query.filter(Company.id.in_(ids)).all()}
+    missing = [i for i in ids if i not in found]
+    if missing:
+        return None, _err(400, "bad_request", f"Unknown company id(s): {', '.join(map(str, missing))}.")
+    return ",".join(str(i) for i in ids), None
 
 
 # ---------------------------------------------------------------------
@@ -162,7 +196,7 @@ def create_user():
     body = request.get_json(silent=True)
     if not isinstance(body, dict):
         return _err(400, "invalid_json", "Request body must be a JSON object.")
-    error = _check_fields(body, {"username", "full_name", "email", "role"})
+    error = _check_fields(body, USER_FIELDS)
     if error:
         return error
 
@@ -181,6 +215,15 @@ def create_user():
     role, error = _clean_role(body.get("role", "user"))
     if error:
         return error
+    phone, error = _clean_text(body.get("phone"), "Phone", 50)
+    if error:
+        return error
+    job_title, error = _clean_text(body.get("job_title"), "Job title", 100)
+    if error:
+        return error
+    company_ids, error = _clean_company_ids(body.get("company_ids"))
+    if error:
+        return error
 
     if _username_taken(username):
         return _err(409, "conflict", "That username is already in use.")
@@ -189,6 +232,7 @@ def create_user():
     user = User(
         username=username, password_hash=generate_password_hash(password),
         full_name=full_name, email=email, role=role, is_root=False, is_active=True,
+        phone=phone, job_title=job_title, company_ids=company_ids,
     )
     db.session.add(user)
     error = _commit()
@@ -210,7 +254,7 @@ def update_user(user_id: int):
     body = request.get_json(silent=True)
     if not isinstance(body, dict):
         return _err(400, "invalid_json", "Request body must be a JSON object.")
-    error = _check_fields(body, {"username", "full_name", "email", "role"})
+    error = _check_fields(body, USER_FIELDS)
     if error:
         return error
     if "username" in body and str(body["username"]).strip().lower() != target.username.lower():
@@ -223,6 +267,18 @@ def update_user(user_id: int):
             return error
     if "email" in body:
         changes["email"], error = _clean_email(body["email"])
+        if error:
+            return error
+    if "phone" in body:
+        changes["phone"], error = _clean_text(body["phone"], "Phone", 50)
+        if error:
+            return error
+    if "job_title" in body:
+        changes["job_title"], error = _clean_text(body["job_title"], "Job title", 100)
+        if error:
+            return error
+    if "company_ids" in body:
+        changes["company_ids"], error = _clean_company_ids(body["company_ids"])
         if error:
             return error
     if "role" in body:

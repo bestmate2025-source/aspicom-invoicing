@@ -10,6 +10,7 @@ Registered in app.py with url_prefix="/api/suppliers".
   POST   /api/suppliers/<id>/deactivate   soft switch off
   POST   /api/suppliers/<id>/activate     switch back on
   POST   /api/suppliers/from-parsed       create from supplier details read off a PDF
+  POST   /api/suppliers/link-bills        link imported PDF bills that have no supplier yet (by supplier name)
 
 Who can do what: the app-wide before_request check in app.py already limits
 POST / PUT / DELETE to admins, so the read-only 'user' role can only GET.
@@ -28,7 +29,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.exc import SQLAlchemyError
 
 from extensions import db
-from models import ParsedInvoice, Supplier
+from models import ParsedInvoice, PurchaseOrder, Supplier
 from utils.auth import auth_enabled
 from utils.responses import api_response
 
@@ -251,6 +252,60 @@ def create_from_parsed():
     return _create_supplier(body, ignore_unknown=True)
 
 
+def _norm_name(value) -> str:
+    """Name for matching: lower case, extra spaces squeezed."""
+    return " ".join(str(value or "").lower().split())
+
+
+def plan_bill_links(suppliers, bills) -> tuple[dict, int]:
+    """Decide which bills get which supplier. Pure function (no database).
+
+    suppliers: [(supplier_id, name)]   bills: [(bill_id, supplier_name_on_bill)]
+    A bill is linked when its supplier name equals one supplier's name (capitals and
+    extra spaces ignored). If two suppliers share a name the bill is skipped (too risky to guess).
+    Returns ({bill_id: supplier_id}, skipped_ambiguous_count).
+    """
+    by_name: dict[str, int] = {}
+    duplicated: set[str] = set()
+    for supplier_id, name in suppliers:
+        key = _norm_name(name)
+        if not key:
+            continue
+        if key in by_name:
+            duplicated.add(key)
+        else:
+            by_name[key] = supplier_id
+    plan: dict[int, int] = {}
+    skipped = 0
+    for bill_id, bill_name in bills:
+        key = _norm_name(bill_name)
+        if not key or key not in by_name:
+            continue
+        if key in duplicated:
+            skipped += 1
+        else:
+            plan[bill_id] = by_name[key]
+    return plan, skipped
+
+
+@suppliers_bp.route("/link-bills", methods=["POST"])
+def link_bills():
+    """POST /api/suppliers/link-bills - give every imported PDF bill that has no supplier yet
+    the supplier with the same name. Safe to call any number of times."""
+    suppliers = [(s.id, s.name) for s in Supplier.query.all()]
+    bills = ParsedInvoice.query.filter(ParsedInvoice.supplier_id.is_(None)).all()
+    plan, skipped = plan_bill_links(suppliers, [(b.id, b.supplier_name) for b in bills])
+    for bill in bills:
+        if bill.id in plan:
+            bill.supplier_id = plan[bill.id]
+    try:
+        db.session.commit()
+    except SQLAlchemyError as exc:
+        db.session.rollback()
+        return api_response(error="db_error", message=str(exc)), 500
+    return api_response(data={"linked": len(plan), "skipped_ambiguous": skipped}), 200
+
+
 @suppliers_bp.route("", methods=["POST"])
 def create_supplier():
     body = _json_body()
@@ -317,6 +372,14 @@ def delete_supplier(supplier_id: int):
         return api_response(
             error="conflict",
             message=f"Cannot delete '{supplier.name}': {linked} imported supplier bill(s) are linked to it. "
+                    f"Deactivate it instead.",
+        ), 409
+
+    po_count = PurchaseOrder.query.filter(PurchaseOrder.supplier_id == supplier.id).count()
+    if po_count:
+        return api_response(
+            error="conflict",
+            message=f"Cannot delete '{supplier.name}': {po_count} purchase order(s) use it. "
                     f"Deactivate it instead.",
         ), 409
 

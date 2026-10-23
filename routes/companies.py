@@ -7,6 +7,8 @@ The older single-company routes in routes/company.py (/api/company) are left
 untouched; they keep working on company id=1.
 
 Companies are never deleted — there is deliberately no DELETE endpoint.
+
+Phase 4.5: every company has a currency (USD or AED) that its invoices use.
 """
 
 from __future__ import annotations
@@ -20,6 +22,11 @@ from routes.company import EDITABLE_FIELDS, _save_upload
 from utils.responses import api_response
 
 companies_bp = Blueprint("companies", __name__)
+
+# 1 company = 1 currency (ERP Phase 4.5). routes/company.py is left untouched, so the
+# field list it exports does not know "currency" - it is added here.
+CURRENCIES = ("USD", "AED")
+COMPANY_FIELDS = set(EDITABLE_FIELDS) | {"currency"}
 
 
 def _not_found():
@@ -35,14 +42,14 @@ def _check_body(body, is_create: bool):
         return None, (api_response(error="invalid_json",
                                    message="Request body must be a JSON object."), 400)
 
-    unknown = set(body.keys()) - EDITABLE_FIELDS
+    unknown = set(body.keys()) - COMPANY_FIELDS
     if unknown:
         return None, (api_response(
             error="unknown_fields",
             message=f"Unrecognized field(s): {', '.join(sorted(unknown))}.",
         ), 400)
 
-    for field in EDITABLE_FIELDS:
+    for field in COMPANY_FIELDS:
         if field in body and body[field] is not None and not isinstance(body[field], str):
             return None, (api_response(error="invalid_type",
                                        message=f"'{field}' must be a string."), 400)
@@ -50,6 +57,14 @@ def _check_body(body, is_create: bool):
     clean = dict(body)
     if clean.get("name") is not None:
         clean["name"] = clean["name"].strip()
+
+    # Currency: USD or AED. Left out on create -> USD (the column default). Never blank on edit.
+    if "currency" in clean:
+        cur = (clean["currency"] or "").strip().upper()
+        if cur not in CURRENCIES:
+            return None, (api_response(error="bad_request",
+                                       message="Currency must be one of: " + ", ".join(CURRENCIES) + "."), 400)
+        clean["currency"] = cur
 
     # Name is required when creating; when editing it may be omitted, but not blanked.
     if is_create or "name" in clean:
@@ -91,7 +106,7 @@ def create_company():
         return api_response(error="duplicate_name",
                             message="A company with this name already exists."), 400
 
-    company = Company(**{f: clean[f] for f in EDITABLE_FIELDS if f in clean})
+    company = Company(**{f: clean[f] for f in COMPANY_FIELDS if f in clean})
     db.session.add(company)
     try:
         db.session.commit()
@@ -116,7 +131,7 @@ def update_company(company_id: int):
         return api_response(error="duplicate_name",
                             message="A company with this name already exists."), 400
 
-    for field in EDITABLE_FIELDS:
+    for field in COMPANY_FIELDS:
         if field in clean:
             setattr(company, field, clean[field])
 

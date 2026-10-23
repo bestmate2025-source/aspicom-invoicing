@@ -345,6 +345,9 @@ body:not([data-can~="admin"]) #nav-accounting {display:none !important;}
 .acc-lines input, .acc-lines select{padding:7px 9px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink); font-family:inherit; font-size:13px;}
 .acc-lines input:focus, .acc-lines select:focus{outline:none; border-color:var(--pine);}
 #acc-journal-save:disabled{opacity:0.45; cursor:not-allowed;}
+/* R16 - accounting filters */
+.acc-filter{display:flex; align-items:center; gap:6px; font-size:13px; font-weight:600; color:var(--sub);}
+.acc-filter select, .acc-filter input{padding:6px 10px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink); font-family:inherit; font-size:13px;}
 </style>
 </head>
 <body>
@@ -496,15 +499,18 @@ body:not([data-can~="admin"]) #nav-accounting {display:none !important;}
 
   <div id="view-accounting" style="display:none;">
     <h1>Accounting</h1>
-    <p class="lede">Chart of accounts and manual journal entries. Admin only.</p>
+    <p class="lede">Each company keeps its own books in its own currency. Admin only.</p>
     <div class="toolbar" id="acc-tabs" style="justify-content:flex-start; flex-wrap:wrap; gap:8px; margin-bottom:16px;">
       <button type="button" class="report-tab active" data-acc-tab="accounts">Chart of Accounts</button>
       <button type="button" class="report-tab" data-acc-tab="journals">Journal Entries</button>
+      <button type="button" class="report-tab" data-acc-tab="trial">Trial Balance</button>
     </div>
 
     <div id="acc-pane-accounts">
-      <div class="toolbar" style="justify-content:flex-start; margin-bottom:16px;">
+      <div class="toolbar" style="flex-wrap:wrap; gap:8px; margin-bottom:16px; justify-content:flex-start;">
+        <label class="acc-filter">Company <select id="acc-company-filter"></select></label>
         <button type="button" class="btn" id="acc-new-account-btn">+ Add Account</button>
+        <button type="button" class="btn ghost" id="acc-seed-btn" style="margin-left:auto;">Load Starter Accounts</button>
       </div>
       <table>
         <thead><tr><th>Code</th><th>Name</th><th>Type</th><th>Status</th></tr></thead>
@@ -515,6 +521,7 @@ body:not([data-can~="admin"]) #nav-accounting {display:none !important;}
     <div id="acc-pane-journals" style="display:none;">
       <div class="toolbar" style="flex-wrap:wrap; gap:8px; margin-bottom:16px; justify-content:flex-start;">
         <button type="button" class="btn" id="acc-new-journal-btn">+ New Journal</button>
+        <label class="acc-filter">Company <select id="acc-journal-company"></select></label>
         <select id="acc-journal-filter" style="padding:5px 8px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink); font-family:inherit;">
           <option value="">All statuses</option>
           <option value="Draft">Draft</option>
@@ -523,12 +530,21 @@ body:not([data-can~="admin"]) #nav-accounting {display:none !important;}
         </select>
       </div>
       <table>
-        <thead><tr><th>Date</th><th>Entry #</th><th>Reference</th><th>Description</th><th style="text-align:right;">Debit</th><th style="text-align:right;">Credit</th><th>Status</th><th>Action</th></tr></thead>
-        <tbody id="acc-journal-rows"><tr><td colspan="8" class="empty">Loading...</td></tr></tbody>
+        <thead><tr><th>Date</th><th>Entry #</th><th>Company</th><th>Reference</th><th>Description</th><th style="text-align:right;">Debit</th><th style="text-align:right;">Credit</th><th>Source</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody id="acc-journal-rows"><tr><td colspan="10" class="empty">Loading...</td></tr></tbody>
       </table>
     </div>
-  </div>
 
+    <div id="acc-pane-trial" style="display:none;">
+      <div class="toolbar" style="flex-wrap:wrap; gap:8px; margin-bottom:16px; justify-content:flex-start;">
+        <label class="acc-filter">Company <select id="acc-tb-company"></select></label>
+        <label class="acc-filter">As of <input type="date" id="acc-tb-asof"></label>
+        <button type="button" class="btn sm" id="acc-tb-apply">Apply</button>
+        <button type="button" class="btn ghost sm" id="acc-tb-clear">All dates</button>
+      </div>
+      <div id="acc-tb-content"><div class="empty">Choose a company.</div></div>
+    </div>
+  </div>
   <div id="view-clients" style="display:none;">
     <h1>Clients</h1>
     <p class="lede">Who you bill — name, address and TRN feed straight onto the invoice.</p>
@@ -863,6 +879,7 @@ body:not([data-can~="admin"]) #nav-accounting {display:none !important;}
   <div class="modal">
     <h2 id="acc-account-title">Add account</h2>
     <form id="acc-account-form" novalidate autocomplete="off">
+      <div class="field"><label>Company</label><select id="acc-company"></select></div>
       <div class="field"><label>Code</label><input type="text" id="acc-code" maxlength="20" placeholder="e.g. 1000"></div>
       <div class="field"><label>Name</label><input type="text" id="acc-name" maxlength="100" placeholder="e.g. Cash in hand"></div>
       <div class="field"><label>Type</label>
@@ -892,10 +909,15 @@ body:not([data-can~="admin"]) #nav-accounting {display:none !important;}
     <h2 id="acc-journal-title">New journal</h2>
     <form id="acc-journal-form" novalidate autocomplete="off">
       <div class="grid2">
+        <div class="field"><label>Company</label><select id="acc-j-company"></select></div>
         <div class="field"><label>Date</label><input type="date" id="acc-j-date"></div>
+      </div>
+      <div class="grid2">
         <div class="field"><label>Reference</label><input type="text" id="acc-j-ref" maxlength="100" placeholder="optional"></div>
+        <div class="field"><label>Currency</label><input type="text" id="acc-j-currency" disabled></div>
       </div>
       <div class="field"><label>Description</label><textarea id="acc-j-desc" rows="2" placeholder="What is this entry for?"></textarea></div>
+      <div id="acc-j-hint" style="display:none; font-size:12px; color:var(--amber); margin-bottom:8px;"></div>
       <table class="acc-lines">
         <thead><tr><th style="width:34%;">Account</th><th style="width:14%; text-align:right;">Debit</th><th style="width:14%; text-align:right;">Credit</th><th>Description</th><th style="width:40px;"></th></tr></thead>
         <tbody id="acc-j-lines"></tbody>
@@ -4144,9 +4166,9 @@ function readUserCompanyIds() {
 }
 
 // ==========================================================
-// ACCOUNTING (Stage 1): chart of accounts + manual journals
+// ACCOUNTING (Stage 2A): company books, starter accounts, source column, trial balance
 // ==========================================================
-const acc = { tab: 'accounts', accounts: [], journals: [], editingAccountId: null, editingJournalId: null, readOnly: false, lineSeq: 0 };
+const acc = { tab: 'accounts', companies: [], accounts: [], journals: [], jAccounts: [], editingAccountId: null, editingJournalId: null, readOnly: false, ready: false };
 
 function accEsc(s) {
   return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -4167,30 +4189,56 @@ function accPill(status) {
   const cls = status === 'Posted' ? 'status-Paid' : (status === 'Reversed' ? 'status-Overdue' : 'status-Draft');
   return '<span class="status-pill ' + cls + '">' + accEsc(status) + '</span>';
 }
+function accCompany(id) {
+  return acc.companies.find(c => c.id === id) || null;
+}
+function accCompanyOptions(selectedId, withAll) {
+  return (withAll ? '<option value="">All Companies</option>' : '')
+    + acc.companies.map(c => '<option value="' + c.id + '"' + (c.id === selectedId ? ' selected' : '') + '>' + accEsc(c.name) + ' (' + accEsc(c.currency || 'USD') + ')</option>').join('');
+}
 async function accJson(path, method, body) {
   const opts = { method: method };
   if (body !== undefined) { opts.headers = { 'Content-Type': 'application/json' }; opts.body = JSON.stringify(body); }
   return api(path, opts);
 }
 
+async function accEnsureCompanies() {
+  if (acc.ready) return;
+  try { acc.companies = await accJson('/api/companies', 'GET'); } catch (err) { toastErr(err.message); acc.companies = []; }
+  acc.companies.sort((a, b) => a.id - b.id);
+  const first = acc.companies.length ? acc.companies[0].id : null;
+  document.getElementById('acc-company-filter').innerHTML = accCompanyOptions(first, false);
+  document.getElementById('acc-journal-company').innerHTML = accCompanyOptions(null, true);
+  document.getElementById('acc-tb-company').innerHTML = accCompanyOptions(first, false);
+  acc.ready = true;
+}
+
 function switchAccTab(tab) {
-  acc.tab = tab === 'journals' ? 'journals' : 'accounts';
+  acc.tab = ['journals', 'trial'].indexOf(tab) >= 0 ? tab : 'accounts';
   document.querySelectorAll('#acc-tabs .report-tab').forEach(b => b.classList.toggle('active', b.dataset.accTab === acc.tab));
-  document.getElementById('acc-pane-accounts').style.display = acc.tab === 'accounts' ? '' : 'none';
-  document.getElementById('acc-pane-journals').style.display = acc.tab === 'journals' ? '' : 'none';
-  if (acc.tab === 'accounts') loadAccounts(); else loadJournals();
+  ['accounts', 'journals', 'trial'].forEach(t => { document.getElementById('acc-pane-' + t).style.display = acc.tab === t ? '' : 'none'; });
+  accEnsureCompanies().then(() => {
+    if (acc.tab === 'accounts') loadAccounts();
+    else if (acc.tab === 'journals') loadJournals();
+    else loadTrialBalance();
+  });
 }
 
 // ---------- accounts ----------
 async function loadAccounts() {
-  try { acc.accounts = await accJson('/api/accounting/accounts', 'GET'); }
+  const cid = document.getElementById('acc-company-filter').value;
+  try { acc.accounts = cid ? await accJson('/api/accounting/accounts?company_id=' + cid, 'GET') : []; }
   catch (err) { toastErr(err.message); acc.accounts = []; }
   renderAccounts();
 }
 function renderAccounts() {
   const body = document.getElementById('acc-account-rows');
+  if (!acc.companies.length) {
+    body.innerHTML = '<tr><td colspan="4" class="empty">No company found. Create a company first (Settings, Company Profile).</td></tr>';
+    return;
+  }
   if (!acc.accounts.length) {
-    body.innerHTML = '<tr><td colspan="4" class="empty">No accounts yet. Click + Add Account to create the first one.</td></tr>';
+    body.innerHTML = '<tr><td colspan="4" class="empty">No accounts for this company yet. Click Load Starter Accounts, or + Add Account.</td></tr>';
     return;
   }
   const byId = {};
@@ -4205,48 +4253,63 @@ function renderAccounts() {
 function openAccountModal(id) {
   acc.editingAccountId = id || null;
   const a = id ? acc.accounts.find(x => x.id === id) : null;
+  const cid = a ? a.company_id : parseInt(document.getElementById('acc-company-filter').value, 10);
   document.getElementById('acc-account-title').textContent = a ? 'Edit account' : 'Add account';
+  const compSel = document.getElementById('acc-company');
+  compSel.innerHTML = accCompanyOptions(cid, false);
+  compSel.disabled = !!a;   // an account can never move to another company
   document.getElementById('acc-code').value = a ? a.code : '';
   document.getElementById('acc-name').value = a ? a.name : '';
   document.getElementById('acc-type').value = a ? a.type : 'Asset';
   document.getElementById('acc-active').checked = a ? !!a.is_active : true;
-  const sel = document.getElementById('acc-parent');
-  sel.innerHTML = '<option value="">None (top level)</option>' + acc.accounts
-    .filter(x => !a || x.id !== a.id)
-    .map(x => '<option value="' + x.id + '">' + accEsc(x.code) + ' - ' + accEsc(x.name) + '</option>').join('');
-  sel.value = a && a.parent_id ? String(a.parent_id) : '';
+  fillParentOptions(cid, a ? a.id : null, a ? a.parent_id : null);
   document.getElementById('acc-account-delete').style.display = a ? 'inline-block' : 'none';
   document.getElementById('acc-account-overlay').classList.add('show');
+}
+async function fillParentOptions(companyId, selfId, parentId) {
+  const sel = document.getElementById('acc-parent');
+  let list = [];
+  try { list = await accJson('/api/accounting/accounts?company_id=' + companyId, 'GET'); } catch (e) { list = []; }
+  sel.innerHTML = '<option value="">None (top level)</option>' + list
+    .filter(x => x.id !== selfId)
+    .map(x => '<option value="' + x.id + '">' + accEsc(x.code) + ' - ' + accEsc(x.name) + '</option>').join('');
+  sel.value = parentId ? String(parentId) : '';
 }
 function closeAccountModal() { document.getElementById('acc-account-overlay').classList.remove('show'); }
 
 // ---------- journals ----------
 async function loadJournals() {
   const status = document.getElementById('acc-journal-filter').value;
-  try {
-    acc.journals = await accJson('/api/accounting/journals' + (status ? '?status=' + encodeURIComponent(status) : ''), 'GET');
-  } catch (err) { toastErr(err.message); acc.journals = []; }
+  const cid = document.getElementById('acc-journal-company').value;
+  const qs = [];
+  if (status) qs.push('status=' + encodeURIComponent(status));
+  if (cid) qs.push('company_id=' + encodeURIComponent(cid));
+  try { acc.journals = await accJson('/api/accounting/journals' + (qs.length ? '?' + qs.join('&') : ''), 'GET'); }
+  catch (err) { toastErr(err.message); acc.journals = []; }
   renderJournals();
 }
 function renderJournals() {
   const body = document.getElementById('acc-journal-rows');
   if (!acc.journals.length) {
-    body.innerHTML = '<tr><td colspan="8" class="empty">No journal entries yet.</td></tr>';
+    body.innerHTML = '<tr><td colspan="10" class="empty">No journal entries found.</td></tr>';
     return;
   }
   body.innerHTML = acc.journals.map(j => {
+    const manual = (j.source_type || 'manual') === 'manual';
     const btns = ['<button type="button" class="btn ghost sm" data-j-act="open" data-id="' + j.id + '">' + (j.status === 'Draft' ? 'Edit' : 'View') + '</button>'];
     if (j.status === 'Draft') btns.push('<button type="button" class="btn sm" data-j-act="post" data-id="' + j.id + '">Post</button>');
     if (j.status === 'Draft') btns.push('<button type="button" class="btn ghost sm" data-j-act="delete" data-id="' + j.id + '" style="color:var(--danger); border-color:var(--danger);">Delete</button>');
-    if (j.status === 'Posted' && !j.reversal_of_id) btns.push('<button type="button" class="btn ghost sm" data-j-act="reverse" data-id="' + j.id + '">Reverse</button>');
-    return '<tr><td>' + accEsc(j.entry_date) + '</td><td><strong>' + accEsc(j.entry_number) + '</strong></td><td>' + accEsc(j.reference || '') + '</td><td>'
-      + accEsc((j.description || '').slice(0, 80)) + '</td><td style="text-align:right;">' + accMoney(j.total_debit) + '</td><td style="text-align:right;">'
-      + accMoney(j.total_credit) + '</td><td>' + accPill(j.status) + '</td><td style="white-space:nowrap; display:flex; gap:6px;">' + btns.join('') + '</td></tr>';
+    if (j.status === 'Posted' && !j.reversal_of_id && manual) btns.push('<button type="button" class="btn ghost sm" data-j-act="reverse" data-id="' + j.id + '">Reverse</button>');
+    const co = accCompany(j.company_id);
+    const source = (j.source_type || 'manual') + ' / ' + (j.source_ref || 'â€”');
+    return '<tr><td>' + accEsc(j.entry_date) + '</td><td><strong>' + accEsc(j.entry_number) + '</strong></td><td>' + accEsc(co ? co.name : ('#' + j.company_id)) + '</td><td>' + accEsc(j.reference || '') + '</td><td>'
+      + accEsc((j.description || '').slice(0, 60)) + '</td><td style="text-align:right;">' + accMoney(j.total_debit) + '</td><td style="text-align:right;">'
+      + accMoney(j.total_credit) + '</td><td style="font-size:12px; color:var(--sub);">' + accEsc(source) + '</td><td>' + accPill(j.status) + '</td><td style="white-space:nowrap; display:flex; gap:6px;">' + btns.join('') + '</td></tr>';
   }).join('');
 }
 
 function accAccountOptions(selectedId) {
-  const usable = acc.accounts.filter(a => a.is_active || a.id === selectedId);
+  const usable = acc.jAccounts.filter(a => a.is_active || a.id === selectedId);
   return '<option value="">Choose account...</option>' + usable.map(a =>
     '<option value="' + a.id + '"' + (a.id === selectedId ? ' selected' : '') + '>' + accEsc(a.code) + ' - ' + accEsc(a.name) + '</option>').join('');
 }
@@ -4292,19 +4355,34 @@ function updateJournalTotals() {
   else if (!balanced) { msg = 'Out of balance by ' + accMoney(Math.abs(td - tc) / 100); color = 'var(--danger)'; }
   else { msg = 'Balanced'; color = 'var(--success)'; }
   st.textContent = msg; st.style.color = color;
-  document.getElementById('acc-journal-save').disabled = acc.readOnly || !(complete && balanced);
+  document.getElementById('acc-journal-save').disabled = acc.readOnly || !(complete && balanced) || !document.getElementById('acc-j-company').value;
+}
+async function loadJournalAccounts(companyId) {
+  const hint = document.getElementById('acc-j-hint');
+  hint.style.display = 'none';
+  try { acc.jAccounts = companyId ? await accJson('/api/accounting/accounts?company_id=' + companyId, 'GET') : []; }
+  catch (e) { toastErr(e.message); acc.jAccounts = []; }
+  const co = accCompany(companyId);
+  document.getElementById('acc-j-currency').value = co ? (co.currency || 'USD') : '';
+  if (!acc.jAccounts.length) {
+    hint.textContent = 'This company has no accounts yet. Close this window and click Load Starter Accounts on the Chart of Accounts tab.';
+    hint.style.display = 'block';
+  }
 }
 async function openJournalModal(id) {
-  if (!acc.accounts.length) { try { acc.accounts = await accJson('/api/accounting/accounts', 'GET'); } catch (e) { toastErr(e.message); return; } }
+  await accEnsureCompanies();
   acc.editingJournalId = id || null;
   let j = null;
   if (id) {
     try { j = await accJson('/api/accounting/journals/' + id, 'GET'); } catch (e) { toastErr(e.message); return; }
-  } else if (!acc.accounts.some(a => a.is_active)) {
-    toastErr('Create at least one account first (Chart of Accounts tab).');
-    return;
   }
+  if (!acc.companies.length) { toastErr('Create a company first.'); return; }
   acc.readOnly = !!(j && j.status !== 'Draft');
+  const cid = j ? j.company_id : (parseInt(document.getElementById('acc-journal-company').value, 10) || parseInt(document.getElementById('acc-company-filter').value, 10) || acc.companies[0].id);
+  const compSel = document.getElementById('acc-j-company');
+  compSel.innerHTML = accCompanyOptions(cid, false);
+  compSel.disabled = !!j;   // a journal never moves to another company
+  await loadJournalAccounts(cid);
   document.getElementById('acc-journal-title').textContent = j ? (j.entry_number + ' (' + j.status + ')') : 'New journal';
   document.getElementById('acc-j-date').value = j ? j.entry_date : accToday();
   document.getElementById('acc-j-ref').value = j ? (j.reference || '') : '';
@@ -4320,16 +4398,65 @@ async function openJournalModal(id) {
 }
 function closeJournalModal() { document.getElementById('acc-journal-overlay').classList.remove('show'); }
 
+// ---------- trial balance ----------
+async function loadTrialBalance() {
+  const box = document.getElementById('acc-tb-content');
+  const cid = document.getElementById('acc-tb-company').value;
+  if (!cid) { box.innerHTML = '<div class="empty">Choose a company.</div>'; return; }
+  const asof = document.getElementById('acc-tb-asof').value;
+  box.innerHTML = '<div class="empty">Loading...</div>';
+  let d;
+  try { d = await accJson('/api/accounting/trial-balance?company_id=' + cid + (asof ? '&as_of=' + asof : ''), 'GET'); }
+  catch (err) { box.innerHTML = '<div class="empty" style="color:var(--danger);">' + accEsc(err.message) + '</div>'; return; }
+  const rows = d.rows || [];
+  const badge = d.balanced
+    ? '<span class="status-pill status-Paid">Balanced</span>'
+    : '<span class="status-pill status-Overdue">Out of balance</span>';
+  let html = '<div style="margin-bottom:12px; font-size:14px;"><strong>' + accEsc(d.company_name) + '</strong> &middot; amounts in ' + accEsc(d.currency)
+    + (d.as_of ? ' &middot; as of ' + accEsc(d.as_of) : ' &middot; all dates') + ' &nbsp; ' + badge + '</div>';
+  if (!rows.length) {
+    html += '<div class="empty">No posted journals yet for this company.</div>';
+  } else {
+    html += '<table><thead><tr><th>Code</th><th>Account</th><th>Type</th><th style="text-align:right;">Debit</th><th style="text-align:right;">Credit</th></tr></thead><tbody>'
+      + rows.map(r => '<tr><td><strong>' + accEsc(r.code) + '</strong></td><td>' + accEsc(r.name) + '</td><td>' + accEsc(r.type) + '</td><td style="text-align:right;">'
+        + (Number(r.debit) ? accMoney(r.debit) : '') + '</td><td style="text-align:right;">' + (Number(r.credit) ? accMoney(r.credit) : '') + '</td></tr>').join('')
+      + '<tr style="font-weight:700; background:var(--grey-soft);"><td colspan="3">Total</td><td style="text-align:right;">' + accMoney(d.total_debit)
+      + '</td><td style="text-align:right;">' + accMoney(d.total_credit) + '</td></tr></tbody></table>';
+  }
+  box.innerHTML = html;
+}
+
 function wireAccounting() {
   if (wireAccounting.done) return;
   wireAccounting.done = true;
   document.querySelectorAll('#acc-tabs .report-tab').forEach(b => b.addEventListener('click', () => switchAccTab(b.dataset.accTab)));
-  document.getElementById('acc-new-account-btn').addEventListener('click', () => openAccountModal(null));
+  document.getElementById('acc-company-filter').addEventListener('change', loadAccounts);
+  document.getElementById('acc-journal-company').addEventListener('change', loadJournals);
+  document.getElementById('acc-journal-filter').addEventListener('change', loadJournals);
+  document.getElementById('acc-tb-company').addEventListener('change', loadTrialBalance);
+  document.getElementById('acc-tb-apply').addEventListener('click', loadTrialBalance);
+  document.getElementById('acc-tb-clear').addEventListener('click', () => { document.getElementById('acc-tb-asof').value = ''; loadTrialBalance(); });
+  document.getElementById('acc-new-account-btn').addEventListener('click', () => { if (!acc.companies.length) { toastErr('Create a company first.'); return; } openAccountModal(null); });
   document.getElementById('acc-account-cancel').addEventListener('click', closeAccountModal);
   document.getElementById('acc-journal-cancel').addEventListener('click', closeJournalModal);
   document.getElementById('acc-new-journal-btn').addEventListener('click', () => openJournalModal(null));
   document.getElementById('acc-add-line').addEventListener('click', () => { addJournalLine(); updateJournalTotals(); });
-  document.getElementById('acc-journal-filter').addEventListener('change', loadJournals);
+  document.getElementById('acc-company').addEventListener('change', (e) => { if (!acc.editingAccountId) fillParentOptions(parseInt(e.target.value, 10), null, null); });
+  document.getElementById('acc-j-company').addEventListener('change', async (e) => {
+    if (acc.editingJournalId) return;
+    await loadJournalAccounts(parseInt(e.target.value, 10));
+    document.querySelectorAll('#acc-j-lines .acc-l-account').forEach(sel => { sel.innerHTML = accAccountOptions(null); });
+    updateJournalTotals();
+  });
+
+  document.getElementById('acc-seed-btn').addEventListener('click', async () => {
+    if (!confirm('Create the 14 starter accounts for every company? Accounts that already exist are skipped.')) return;
+    try {
+      const r = await accJson('/api/accounting/seed-starter-accounts', 'POST', {});
+      toastOk('Created ' + r.created + ' accounts' + (r.skipped ? ' (' + r.skipped + ' already existed)' : ''));
+      await loadAccounts();
+    } catch (err) { toastErr(err.message); }
+  });
 
   document.getElementById('acc-account-form').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -4342,9 +4469,13 @@ function wireAccounting() {
     };
     try {
       if (acc.editingAccountId) await accJson('/api/accounting/accounts/' + acc.editingAccountId, 'PUT', payload);
-      else await accJson('/api/accounting/accounts', 'POST', payload);
+      else {
+        payload.company_id = parseInt(document.getElementById('acc-company').value, 10);
+        await accJson('/api/accounting/accounts', 'POST', payload);
+      }
       toastOk('Account saved');
       closeAccountModal();
+      if (payload.company_id) document.getElementById('acc-company-filter').value = String(payload.company_id);
       await loadAccounts();
     } catch (err) { toastErr(err.message); }
   });
@@ -4375,7 +4506,10 @@ function wireAccounting() {
     };
     try {
       if (acc.editingJournalId) await accJson('/api/accounting/journals/' + acc.editingJournalId, 'PUT', payload);
-      else await accJson('/api/accounting/journals', 'POST', payload);
+      else {
+        payload.company_id = parseInt(document.getElementById('acc-j-company').value, 10);
+        await accJson('/api/accounting/journals', 'POST', payload);
+      }
       toastOk('Draft saved');
       closeJournalModal();
       await loadJournals();
