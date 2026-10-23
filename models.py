@@ -212,11 +212,14 @@ class Company(db.Model):
     signee = db.Column(db.String(255))
     logo_path = db.Column(db.String(500))
     stamp_path = db.Column(db.String(500))
+    # 1 company = 1 currency. Every invoice this company issues uses it (ERP Phase 4.5).
+    currency = db.Column(db.String(3), nullable=False, default="USD")
 
     def to_dict(self) -> dict:
         return {
             "id": self.id,
             "name": self.name,
+            "currency": self.currency or "USD",
             "address": self.address,
             "po_box": self.po_box,
             "trn": self.trn,
@@ -320,7 +323,14 @@ class User(db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     full_name = db.Column(db.String(100))
     email = db.Column(db.String(255))
-    role = db.Column(db.Enum("admin", "user", name="user_role"), nullable=False, default="user")
+    role = db.Column(
+        db.Enum("admin", "manager", "sales", "store", "accountant", "user", name="user_role"),
+        nullable=False, default="user",
+    )
+    phone = db.Column(db.String(50))
+    job_title = db.Column(db.String(100))
+    # Companies this person may use, as "1,3". Empty = all companies.
+    company_ids = db.Column(db.String(255))
     is_active = db.Column(db.Boolean, nullable=False, default=True)
     is_root = db.Column(db.Boolean, nullable=False, default=False)
     last_login = db.Column(db.DateTime, nullable=True)
@@ -334,6 +344,9 @@ class User(db.Model):
             "full_name": self.full_name,
             "email": self.email,
             "role": self.role,
+            "phone": self.phone,
+            "job_title": self.job_title,
+            "company_ids": [int(x) for x in (self.company_ids or "").split(",") if x.strip().isdigit()],
             "is_root": bool(self.is_root),
             "is_active": bool(self.is_active),
             "last_login": self.last_login.isoformat() if self.last_login else None,
@@ -429,3 +442,256 @@ class Supplier(db.Model):
             data["bank_name"] = self.bank_name
             data["bank_account"] = self.bank_account
         return data
+
+
+# ---------------------------------------------------------------------------
+# Phase 4: Purchase Orders and Goods Received Notes
+# ---------------------------------------------------------------------------
+
+PO_STATUSES = ("Draft", "Sent", "Partial", "Received", "Cancelled")
+
+
+class PurchaseOrder(db.Model):
+    """An order we place with a supplier. Stock only changes when goods are received (see GoodsReceivedNote)."""
+
+    __tablename__ = "purchase_orders"
+
+    id = db.Column(db.Integer, primary_key=True)
+    supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id", ondelete="RESTRICT"), nullable=False, index=True)
+    po_number = db.Column(db.String(50), nullable=False, unique=True)
+    status = db.Column(
+        db.Enum(*PO_STATUSES, name="po_status"),
+        nullable=False, default="Draft", index=True,
+    )
+    order_date = db.Column(db.Date, nullable=False)
+    expected_date = db.Column(db.Date, nullable=True)
+    subtotal = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    vat = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    total = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    supplier = db.relationship("Supplier")
+    items = db.relationship(
+        "PurchaseOrderItem", back_populates="po",
+        cascade="all, delete-orphan", order_by="PurchaseOrderItem.id",
+    )
+    grns = db.relationship(
+        "GoodsReceivedNote", back_populates="po",
+        cascade="all, delete-orphan", order_by="GoodsReceivedNote.id",
+    )
+
+    def to_dict(self, include_items: bool = False, include_grns: bool = False) -> dict:
+        data = {
+            "id": self.id,
+            "supplier_id": self.supplier_id,
+            "supplier_name": self.supplier.name if self.supplier else None,
+            "po_number": self.po_number,
+            "status": self.status,
+            "order_date": self.order_date.isoformat() if self.order_date else None,
+            "expected_date": self.expected_date.isoformat() if self.expected_date else None,
+            "subtotal": _dec(self.subtotal),
+            "vat": _dec(self.vat),
+            "total": _dec(self.total),
+            "notes": self.notes,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+        if include_items:
+            data["items"] = [it.to_dict() for it in self.items]
+        if include_grns:
+            data["grns"] = [g.to_dict(include_items=True) for g in self.grns]
+        return data
+
+
+class PurchaseOrderItem(db.Model):
+    __tablename__ = "purchase_order_items"
+
+    id = db.Column(db.Integer, primary_key=True)
+    po_id = db.Column(db.Integer, db.ForeignKey("purchase_orders.id", ondelete="CASCADE"), nullable=False, index=True)
+    product_name = db.Column(db.String(255), nullable=False)
+    brand = db.Column(db.String(255))
+    unit_price = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    qty_ordered = db.Column(db.Numeric(10, 2), nullable=False, default=0)
+    qty_received = db.Column(db.Numeric(10, 2), nullable=False, default=0)
+    vat_percent = db.Column(db.Numeric(5, 2), nullable=False, default=0)
+    amount = db.Column(db.Numeric(12, 2), nullable=False, default=0)  # unit_price x qty_ordered, VAT not included
+
+    po = db.relationship("PurchaseOrder", back_populates="items")
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "po_id": self.po_id,
+            "product_name": self.product_name,
+            "brand": self.brand,
+            "unit_price": _dec(self.unit_price),
+            "qty_ordered": _dec(self.qty_ordered),
+            "qty_received": _dec(self.qty_received),
+            "vat_percent": _dec(self.vat_percent),
+            "amount": _dec(self.amount),
+        }
+
+
+class GoodsReceivedNote(db.Model):
+    """One delivery received against a PO. A PO can have several (partial deliveries)."""
+
+    __tablename__ = "goods_received_notes"
+
+    id = db.Column(db.Integer, primary_key=True)
+    po_id = db.Column(db.Integer, db.ForeignKey("purchase_orders.id", ondelete="CASCADE"), nullable=False, index=True)
+    grn_number = db.Column(db.String(50), nullable=False, unique=True)
+    received_date = db.Column(db.Date, nullable=False)
+    received_by = db.Column(db.Integer, nullable=True)  # users.id, no FK so history survives user deletion
+    notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    po = db.relationship("PurchaseOrder", back_populates="grns")
+    items = db.relationship(
+        "GoodsReceivedNoteItem", back_populates="grn",
+        cascade="all, delete-orphan", order_by="GoodsReceivedNoteItem.id",
+    )
+
+    def to_dict(self, include_items: bool = False) -> dict:
+        data = {
+            "id": self.id,
+            "po_id": self.po_id,
+            "grn_number": self.grn_number,
+            "received_date": self.received_date.isoformat() if self.received_date else None,
+            "received_by": self.received_by,
+            "notes": self.notes,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+        if include_items:
+            data["items"] = [it.to_dict() for it in self.items]
+        return data
+
+
+class GoodsReceivedNoteItem(db.Model):
+    """What exactly arrived on one GRN (so partial deliveries stay traceable)."""
+
+    __tablename__ = "goods_received_note_items"
+
+    id = db.Column(db.Integer, primary_key=True)
+    grn_id = db.Column(db.Integer, db.ForeignKey("goods_received_notes.id", ondelete="CASCADE"), nullable=False, index=True)
+    po_item_id = db.Column(db.Integer, nullable=False, index=True)
+    product_name = db.Column(db.String(255), nullable=False)
+    qty_received = db.Column(db.Numeric(10, 2), nullable=False, default=0)
+
+    grn = db.relationship("GoodsReceivedNote", back_populates="items")
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "grn_id": self.grn_id,
+            "po_item_id": self.po_item_id,
+            "product_name": self.product_name,
+            "qty_received": _dec(self.qty_received),
+        }
+
+
+
+# ---------------------------------------------------------------------
+# Financial Accounting - Stage 1: chart of accounts + manual journals
+# ---------------------------------------------------------------------
+class Account(db.Model):
+    """One account in the chart of accounts (e.g. 1000 Cash, 4000 Sales)."""
+
+    __tablename__ = "accounts"
+
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(20), nullable=False, unique=True)
+    name = db.Column(db.String(100), nullable=False)
+    type = db.Column(
+        db.Enum("Asset", "Liability", "Equity", "Income", "Expense", name="account_type"),
+        nullable=False,
+    )
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+    parent_id = db.Column(db.Integer, db.ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "code": self.code,
+            "name": self.name,
+            "type": self.type,
+            "is_active": bool(self.is_active),
+            "parent_id": self.parent_id,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class JournalEntry(db.Model):
+    """A journal: a dated set of debit / credit lines that must balance.
+
+    Draft can be edited or deleted. Posted is locked. Reversed = a posted journal
+    that has been cancelled by a reversing journal (reversal_of_id points back).
+    """
+
+    __tablename__ = "journal_entries"
+
+    id = db.Column(db.Integer, primary_key=True)
+    entry_number = db.Column(db.String(50), nullable=False, unique=True)
+    entry_date = db.Column(db.Date, nullable=False, index=True)
+    reference = db.Column(db.String(100))
+    description = db.Column(db.Text)
+    status = db.Column(
+        db.Enum("Draft", "Posted", "Reversed", name="journal_status"),
+        nullable=False, default="Draft", index=True,
+    )
+    reversal_of_id = db.Column(db.Integer, nullable=True)  # set on a reversing journal
+    created_by = db.Column(db.Integer)  # users.id (no foreign key: history must survive user deletion)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    lines = db.relationship(
+        "JournalLine", backref="entry", cascade="all, delete-orphan", order_by="JournalLine.id",
+    )
+
+    def to_dict(self, include_lines: bool = False) -> dict:
+        debit = sum((Decimal(str(ln.debit or 0)) for ln in self.lines), Decimal("0"))
+        credit = sum((Decimal(str(ln.credit or 0)) for ln in self.lines), Decimal("0"))
+        data = {
+            "id": self.id,
+            "entry_number": self.entry_number,
+            "entry_date": self.entry_date.isoformat() if self.entry_date else None,
+            "reference": self.reference,
+            "description": self.description,
+            "status": self.status,
+            "reversal_of_id": self.reversal_of_id,
+            "created_by": self.created_by,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "total_debit": f"{debit:.2f}",
+            "total_credit": f"{credit:.2f}",
+        }
+        if include_lines:
+            data["lines"] = [ln.to_dict() for ln in self.lines]
+        return data
+
+
+class JournalLine(db.Model):
+    __tablename__ = "journal_lines"
+
+    id = db.Column(db.Integer, primary_key=True)
+    journal_entry_id = db.Column(
+        db.Integer, db.ForeignKey("journal_entries.id", ondelete="CASCADE"), nullable=False, index=True,
+    )
+    account_id = db.Column(
+        db.Integer, db.ForeignKey("accounts.id", ondelete="RESTRICT"), nullable=False, index=True,
+    )
+    debit = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    credit = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    description = db.Column(db.String(255))
+
+    account = db.relationship("Account")
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "journal_entry_id": self.journal_entry_id,
+            "account_id": self.account_id,
+            "account_code": self.account.code if self.account else None,
+            "account_name": self.account.name if self.account else None,
+            "debit": f"{Decimal(str(self.debit or 0)):.2f}",
+            "credit": f"{Decimal(str(self.credit or 0)):.2f}",
+            "description": self.description,
+        }

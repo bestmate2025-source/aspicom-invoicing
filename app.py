@@ -24,10 +24,14 @@ from routes.inventory import inventory_bp
 from routes.inventory_adjust import inventory_adjust_bp
 from routes.invoices import invoices_bp, payments_bp
 from routes.pdf import pdf_bp
+from routes.purchase_orders import purchase_orders_bp
+from routes.reports import reports_bp
+from routes.accounting import accounting_bp
 from routes.statements import statements_bp
 from routes.stock_movements import stock_movements_bp
 from routes.suppliers import suppliers_bp
 from routes.users import users_bp
+from utils.permissions import can_access
 from routes.vat_report import vat_report_bp
 from utils.auth import auth_enabled, get_current_user
 from utils.responses import api_response
@@ -89,6 +93,9 @@ def create_app() -> Flask:
     app.register_blueprint(pdf_bp, url_prefix="/api")  # /api/parse-pdf, /api/import-pdf
     app.register_blueprint(statements_bp, url_prefix="/api")  # GET /api/clients/<id>/statement — see routes/statements.py
     app.register_blueprint(vat_report_bp, url_prefix="/api")  # GET /api/vat-report — see routes/vat_report.py
+    app.register_blueprint(accounting_bp, url_prefix="/api/accounting")  # chart of accounts + journals - see routes/accounting.py
+    app.register_blueprint(reports_bp, url_prefix="/api/reports")  # inventory valuation, stock aging, sales summary - see routes/reports.py
+    app.register_blueprint(purchase_orders_bp, url_prefix="/api/purchase-orders")
     app.register_blueprint(suppliers_bp, url_prefix="/api/suppliers")  # supplier CRUD + from-parsed — see routes/suppliers.py
     app.register_blueprint(stock_movements_bp, url_prefix="/api")  # GET /api/stock-movements, /api/inventory/<id>/movements — see routes/stock_movements.py
 
@@ -117,8 +124,8 @@ def create_app() -> Flask:
         if user is None:
             return api_response(error="unauthorized", message="Authentication required."), 401
 
-        if request.method in ("POST", "PUT", "DELETE", "PATCH") and user.role != "admin":
-            return api_response(error="forbidden", message="Admin access required."), 403
+        if not can_access(user.role, request.method, request.path):
+            return api_response(error="forbidden", message="Your role is not allowed to do this."), 403
 
         g.current_user = user
         return None

@@ -302,6 +302,49 @@ tbody tr:hover{background:var(--pine-soft);}
 }
 :root[data-theme="dark"] .rail nav .nav-item.ng.active, :root[data-theme="dark"] .rail nav .nav-item.ng.active:hover{color:#0B1A12 !important;}
 :root[data-theme="dark"] .rail nav .nav-item.ng.active::before{background:#0B1A12;}
+/* R13 - sidebar matches dashboard (white card rail, one green) */
+.rail{width:226px !important; flex:0 0 226px !important; padding:24px 14px !important; background:var(--surface) !important; border-right:1px solid var(--line) !important; box-shadow:var(--shadow-sm);}
+.rail .brand{padding:0 8px 4px; font-size:24px;}
+.rail nav{gap:2px;}
+.rail nav .ng-main,.rail nav .ng-sales,.rail nav .ng-purchasing,.rail nav .ng-inventory,.rail nav .ng-reports,.rail nav .ng-settings{--gc:var(--pine) !important;}
+.rail nav .nav-section{font-size:11px !important; font-weight:700; letter-spacing:0.1em; color:var(--grey) !important; padding:14px 10px 6px !important; margin-top:10px !important; border-radius:8px;}
+.rail nav .nav-section:first-child{margin-top:0 !important;}
+.rail nav .nav-section:not(.nav-fixed):hover{background:var(--grey-soft) !important; color:var(--ink) !important;}
+.rail nav .nav-section.nav-has-active{color:var(--pine) !important;}
+.rail nav .nav-item{font-size:14.5px !important; font-weight:500; padding:10px 12px 10px 14px !important; border-radius:10px !important; color:var(--sub) !important; position:relative; background:transparent !important;}
+.rail nav .nav-item.ng::before{width:6px; height:6px; margin-right:11px; background:var(--grey) !important; opacity:0.55;}
+.rail nav .nav-item:hover,:root .rail nav .nav-item.ng:hover{background:var(--grey-soft) !important; color:var(--ink) !important;}
+:root .rail nav .nav-item.active,:root .rail nav .nav-item.active:hover,:root .rail nav .nav-item.ng.active,:root .rail nav .nav-item.ng.active:hover{background:var(--pine-soft) !important; color:var(--pine) !important; font-weight:600; box-shadow:inset 3px 0 0 var(--pine) !important;}
+:root .rail nav .nav-item.ng.active::before{background:var(--pine) !important; opacity:1;}
+#sidebar-user{margin:auto 4px 0 !important;}
+/* R14 - hide change buttons a role may not use (the server enforces it too) */
+body:not([data-can~="sales"]) #new-invoice-btn,
+body:not([data-can~="sales"]) #new-quotation-btn,
+body:not([data-can~="sales"]) #new-client-btn,
+body:not([data-can~="sales"]) #delete-invoice-btn,
+body:not([data-can~="sales"]) #delete-client-btn,
+body:not([data-can~="sales"]) #invoice-form button[type="submit"],
+body:not([data-can~="sales"]) #client-form button[type="submit"],
+body:not([data-can~="pay"]) #add-payment-btn,
+body:not([data-can~="stock"]) #new-inv-item-btn,
+body:not([data-can~="stock"]) #new-supplier-btn,
+body:not([data-can~="stock"]) #import-pdf-btn,
+body:not([data-can~="stock"]) #new-po-btn,
+body:not([data-can~="stock"]) #adjust-stock-btn,
+body:not([data-can~="stock"]) #sup-delete-btn,
+body:not([data-can~="stock"]) #delete-inv-item-btn,
+body:not([data-can~="stock"]) #inv-item-form button[type="submit"],
+body:not([data-can~="stock"]) #supplier-form button[type="submit"],
+body:not([data-can~="admin"]) #new-company-btn,
+body:not([data-can~="admin"]) #company-form button[type="submit"],
+body:not([data-can~="admin"]) #new-user-btn {display:none !important;}
+/* R15 - accounting (admin only) */
+body:not([data-can~="admin"]) #nav-accounting {display:none !important;}
+.acc-lines{margin-top:6px;}
+.acc-lines td{padding:6px 8px; vertical-align:middle;}
+.acc-lines input, .acc-lines select{padding:7px 9px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink); font-family:inherit; font-size:13px;}
+.acc-lines input:focus, .acc-lines select:focus{outline:none; border-color:var(--pine);}
+#acc-journal-save:disabled{opacity:0.45; cursor:not-allowed;}
 </style>
 </head>
 <body>
@@ -328,6 +371,7 @@ tbody tr:hover{background:var(--pine-soft);}
     <div class="nav-section">REPORTS</div>
     <button class="nav-item" data-view="vat-report">VAT Report</button>
     <button class="nav-item" data-view="reports">Business Reports</button>
+    <button class="nav-item" data-view="accounting" id="nav-accounting">Accounting</button>
     <div class="nav-section">SETTINGS</div>
     <button class="nav-item" data-view="company">Company Profile</button>
     <button class="nav-item" data-view="users" id="nav-users" style="display:none;">Users</button>
@@ -448,6 +492,41 @@ tbody tr:hover{background:var(--pine-soft);}
       <button type="button" class="btn ghost sm" data-rpt-quick="all">All time</button>
     </div>
     <div id="report-content"><div class="empty">Loading...</div></div>
+  </div>
+
+  <div id="view-accounting" style="display:none;">
+    <h1>Accounting</h1>
+    <p class="lede">Chart of accounts and manual journal entries. Admin only.</p>
+    <div class="toolbar" id="acc-tabs" style="justify-content:flex-start; flex-wrap:wrap; gap:8px; margin-bottom:16px;">
+      <button type="button" class="report-tab active" data-acc-tab="accounts">Chart of Accounts</button>
+      <button type="button" class="report-tab" data-acc-tab="journals">Journal Entries</button>
+    </div>
+
+    <div id="acc-pane-accounts">
+      <div class="toolbar" style="justify-content:flex-start; margin-bottom:16px;">
+        <button type="button" class="btn" id="acc-new-account-btn">+ Add Account</button>
+      </div>
+      <table>
+        <thead><tr><th>Code</th><th>Name</th><th>Type</th><th>Status</th></tr></thead>
+        <tbody id="acc-account-rows"><tr><td colspan="4" class="empty">Loading...</td></tr></tbody>
+      </table>
+    </div>
+
+    <div id="acc-pane-journals" style="display:none;">
+      <div class="toolbar" style="flex-wrap:wrap; gap:8px; margin-bottom:16px; justify-content:flex-start;">
+        <button type="button" class="btn" id="acc-new-journal-btn">+ New Journal</button>
+        <select id="acc-journal-filter" style="padding:5px 8px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink); font-family:inherit;">
+          <option value="">All statuses</option>
+          <option value="Draft">Draft</option>
+          <option value="Posted">Posted</option>
+          <option value="Reversed">Reversed</option>
+        </select>
+      </div>
+      <table>
+        <thead><tr><th>Date</th><th>Entry #</th><th>Reference</th><th>Description</th><th style="text-align:right;">Debit</th><th style="text-align:right;">Credit</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody id="acc-journal-rows"><tr><td colspan="8" class="empty">Loading...</td></tr></tbody>
+      </table>
+    </div>
   </div>
 
   <div id="view-clients" style="display:none;">
@@ -780,6 +859,64 @@ tbody tr:hover{background:var(--pine-soft);}
   </div>
 </div>
 
+<div class="overlay" id="acc-account-overlay">
+  <div class="modal">
+    <h2 id="acc-account-title">Add account</h2>
+    <form id="acc-account-form" novalidate autocomplete="off">
+      <div class="field"><label>Code</label><input type="text" id="acc-code" maxlength="20" placeholder="e.g. 1000"></div>
+      <div class="field"><label>Name</label><input type="text" id="acc-name" maxlength="100" placeholder="e.g. Cash in hand"></div>
+      <div class="field"><label>Type</label>
+        <select id="acc-type">
+          <option value="Asset">Asset (what you own)</option>
+          <option value="Liability">Liability (what you owe)</option>
+          <option value="Equity">Equity (owner's share)</option>
+          <option value="Income">Income (sales and other income)</option>
+          <option value="Expense">Expense (costs)</option>
+        </select>
+      </div>
+      <div class="field"><label>Parent account (optional)</label><select id="acc-parent"></select></div>
+      <div class="field"><label style="display:flex; align-items:center; gap:8px; font-size:13px; font-weight:500; color:var(--ink);"><input type="checkbox" id="acc-active" checked style="width:auto;"> Active (can be used in journals)</label></div>
+      <div class="modal-actions">
+        <div><button type="button" class="btn ghost" id="acc-account-delete" style="display:none; color:var(--danger); border-color:var(--danger);">Delete</button></div>
+        <div class="right">
+          <button type="button" class="btn ghost" id="acc-account-cancel">Cancel</button>
+          <button type="submit" class="btn">Save</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="overlay" id="acc-journal-overlay">
+  <div class="modal" style="max-width:860px;">
+    <h2 id="acc-journal-title">New journal</h2>
+    <form id="acc-journal-form" novalidate autocomplete="off">
+      <div class="grid2">
+        <div class="field"><label>Date</label><input type="date" id="acc-j-date"></div>
+        <div class="field"><label>Reference</label><input type="text" id="acc-j-ref" maxlength="100" placeholder="optional"></div>
+      </div>
+      <div class="field"><label>Description</label><textarea id="acc-j-desc" rows="2" placeholder="What is this entry for?"></textarea></div>
+      <table class="acc-lines">
+        <thead><tr><th style="width:34%;">Account</th><th style="width:14%; text-align:right;">Debit</th><th style="width:14%; text-align:right;">Credit</th><th>Description</th><th style="width:40px;"></th></tr></thead>
+        <tbody id="acc-j-lines"></tbody>
+      </table>
+      <div style="margin:10px 0;"><button type="button" class="btn ghost sm" id="acc-add-line">+ Add Line</button></div>
+      <div id="acc-j-totals" style="display:flex; gap:24px; flex-wrap:wrap; align-items:center; padding:12px 14px; background:var(--grey-soft); border-radius:10px; font-size:14px;">
+        <div>Total debit: <strong id="acc-j-td">0.00</strong></div>
+        <div>Total credit: <strong id="acc-j-tc">0.00</strong></div>
+        <div id="acc-j-status" style="font-weight:600;"></div>
+      </div>
+      <div class="modal-actions" style="margin-top:16px;">
+        <div></div>
+        <div class="right">
+          <button type="button" class="btn ghost" id="acc-journal-cancel">Close</button>
+          <button type="submit" class="btn" id="acc-journal-save">Save Draft</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
 <div class="overlay" id="user-overlay">
   <div class="modal">
     <h2 id="user-modal-title">Add user</h2>
@@ -787,11 +924,22 @@ tbody tr:hover{background:var(--pine-soft);}
       <div class="field"><label>Full name</label><input type="text" id="u-fullname" required></div>
       <div class="field"><label>Username</label><input type="text" id="u-username" required autocomplete="off"></div>
       <div class="field"><label>Email (optional)</label><input type="email" id="u-email"></div>
+      <div class="field"><label>Phone (optional)</label><input type="text" id="u-phone" maxlength="50"></div>
+      <div class="field"><label>Job title (optional)</label><input type="text" id="u-jobtitle" maxlength="100"></div>
       <div class="field"><label>Role</label>
         <select id="u-role">
-          <option value="user">View-only (read access)</option>
-          <option value="admin">Administrator (full access)</option>
+          <option value="user">View-only: can read, cannot change anything</option>
+          <option value="sales">Sales staff: invoices, quotations, clients, payments</option>
+          <option value="store">Purchasing / Store: suppliers, purchase orders, inventory, stock</option>
+          <option value="accountant">Accountant: reads everything, records payments</option>
+          <option value="manager">Manager: everything except Users and Company Profile</option>
+          <option value="admin">Administrator: full access</option>
         </select>
+        <div id="u-role-note" style="font-size:11px; color:var(--sub); margin-top:5px;"></div>
+      </div>
+      <div class="field"><label>Companies this person can use</label>
+        <div id="u-companies" style="display:flex; flex-direction:column; gap:6px;"></div>
+        <div style="font-size:11px; color:var(--sub); margin-top:5px;">Tick none to allow all companies.</div>
       </div>
       <div id="user-password-box" style="display:none; background:var(--pine-soft); border:1px solid var(--pine); border-radius:8px; padding:12px; margin-bottom:14px;">
         <div style="font-size:12px; font-weight:600; color:var(--pine); margin-bottom:4px;">NEW PASSWORD (shown once)</div>
@@ -1082,8 +1230,24 @@ function clearAuth() {
   localStorage.removeItem('aspicom.auth');
 }
 
-function isAdmin() {
+const ROLE_LABELS = { admin: 'Administrator', manager: 'Manager', sales: 'Sales staff', store: 'Purchasing / Store', accountant: 'Accountant', user: 'View-only' };
+const ROLE_AREAS = {
+  admin: ['sales', 'pay', 'stock', 'admin'],
+  manager: ['sales', 'pay', 'stock'],
+  sales: ['sales', 'pay'],
+  store: ['stock'],
+  accountant: ['pay'],
+  user: []
+};
+function userCan(area) {
+  return !!currentUser && (ROLE_AREAS[currentUser.role] || []).indexOf(area) !== -1;
+}
+function isTrueAdmin() {
   return !!currentUser && currentUser.role === 'admin';
+}
+// isAdmin() is used all over the purchasing / stock screens to mean "may change stock data".
+function isAdmin() {
+  return userCan('stock');
 }
 
 async function api(path, options = {}) {
@@ -1139,8 +1303,8 @@ function renderSidebarUser() {
   if (!nameEl || !roleEl) return;
   if (currentUser) {
     nameEl.textContent = currentUser.full_name || currentUser.username || '';
-    roleEl.textContent = currentUser.role === 'admin' ? 'Administrator' : 'View-only user';
-    if (badge) badge.style.display = currentUser.role === 'admin' ? 'none' : 'block';
+    roleEl.textContent = ROLE_LABELS[currentUser.role] || currentUser.role;
+    if (badge) badge.style.display = currentUser.role === 'user' ? 'block' : 'none';
   } else {
     nameEl.textContent = '';
     roleEl.textContent = '';
@@ -1151,10 +1315,12 @@ function renderSidebarUser() {
 function applyRolePermissions() {
   if (!currentUser) return;
   const admin = currentUser.role === 'admin';
+  document.body.dataset.can = (ROLE_AREAS[currentUser.role] || []).join(' ');
+  document.body.dataset.role = currentUser.role;
   const hideIds = ['new-invoice-btn','new-quotation-btn','new-client-btn','new-inv-item-btn','new-company-btn','new-supplier-btn','import-pdf-btn'];
   hideIds.forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.style.display = admin ? '' : 'none';
+    if (el) el.style.display = '';   // shown or hidden by the role CSS (R14)
   const navUsers = document.getElementById('nav-users');
   if (navUsers) navUsers.style.display = admin ? '' : 'none';
   });
@@ -1555,7 +1721,7 @@ document.querySelectorAll('.nav-item').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-        ['dashboard', 'invoices', 'quotations', 'statements', 'vat-report', 'reports', 'clients', 'suppliers', 'inventory', 'purchasing', 'movements', 'supplier', 'company', 'users'].forEach(v => {
+        ['dashboard', 'invoices', 'quotations', 'statements', 'vat-report', 'reports', 'accounting', 'clients', 'suppliers', 'inventory', 'purchasing', 'movements', 'supplier', 'company', 'users'].forEach(v => {
       $('#view-' + v).style.display = (v === btn.dataset.view) ? 'block' : 'none';
     });
   });
@@ -2456,9 +2622,8 @@ let allUsers = [];
 let editingUserId = null;
 
 function rolePill(role) {
-  return role === 'admin'
-    ? '<span class="status-pill status-Paid">Administrator</span>'
-    : '<span class="status-pill status-Sent">View-only</span>';
+  const cls = role === 'admin' ? 'status-Paid' : (role === 'user' ? 'status-Sent' : 'status-Partial');
+  return '<span class="status-pill ' + cls + '">' + (ROLE_LABELS[role] || role) + '</span>';
 }
 
 function renderUsersList() {
@@ -2477,6 +2642,7 @@ function renderUsersList() {
       <div>
         <div class="cname">${u.full_name || u.username}${tags.join('')}</div>
         <div class="cmeta">@${u.username} ${u.email ? '&middot; ' + u.email : ''}</div>
+        ${(u.job_title || u.phone) ? '<div class="cmeta">' + [u.job_title, u.phone].filter(Boolean).join(' &middot; ') + '</div>' : ''}
         <div class="cmeta">${last}</div>
       </div>
       <div style="display:flex; align-items:center;">${rolePill(u.role)}</div>
@@ -2507,6 +2673,10 @@ function openUserModal(id) {
   document.getElementById('u-username').disabled = !!u;   // can't change username
   document.getElementById('u-email').value = u ? (u.email || '') : '';
   document.getElementById('u-role').value = u ? u.role : 'user';
+  document.getElementById('u-phone').value = u ? (u.phone || '') : '';
+  document.getElementById('u-jobtitle').value = u ? (u.job_title || '') : '';
+  updateRoleNote();
+  renderUserCompanies(u ? (u.company_ids || []) : []);
   document.getElementById('u-role').disabled = !!(u && u.is_root);  // root role locked
   document.getElementById('user-password-box').style.display = 'none';
 
@@ -2534,6 +2704,9 @@ document.getElementById('user-form').addEventListener('submit', async (e) => {
     full_name: document.getElementById('u-fullname').value.trim(),
     email: document.getElementById('u-email').value.trim() || null,
     role: document.getElementById('u-role').value,
+    phone: document.getElementById('u-phone').value.trim() || null,
+    job_title: document.getElementById('u-jobtitle').value.trim() || null,
+    company_ids: readUserCompanyIds(),
   };
   try {
     if (editingUserId) {
@@ -2656,7 +2829,7 @@ loadCompanies().then(renderCompanyList).catch(() => {});
     }
     var u = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : null;
     var name = u ? (u.username || u.name || u.email || '') : '';
-    var role = u ? (u.role || '') : '';
+    var role = u ? ((typeof ROLE_LABELS !== 'undefined' && ROLE_LABELS[u.role]) || u.role || '') : '';
     if (nm.textContent !== name) nm.textContent = name;
     if (rl.textContent !== role) rl.textContent = role;
     var initial = name ? name.charAt(0).toUpperCase() : 'A';
@@ -2891,7 +3064,7 @@ function renderSuppliersList() {
 
 function hideBankFieldsIfNotAdmin() {
     const box = $('#sup-bank-fields');
-    if (box) box.style.display = isAdmin() ? '' : 'none';
+    if (box) box.style.display = isTrueAdmin() ? '' : 'none';
 }
 
 function fillSupplierForm(s) {
@@ -2940,7 +3113,7 @@ function readSupplierForm() {
         notes: val('#sup-notes'),
         is_active: $('#sup-active').checked
     };
-    if (isAdmin()) {
+    if (isTrueAdmin()) {
         data.bank_name = val('#sup-bank-name');
         data.bank_account = val('#sup-bank-account');
     }
@@ -3930,6 +4103,315 @@ async function loadSalesSummary() {
     }
   });
 })();
+// ==========================================================
+// USER ROLES (stage 2): role note + allowed companies
+// ==========================================================
+const ROLE_NOTES = {
+  user: 'Can open every screen but cannot add, edit or delete.',
+  sales: 'Creates and edits invoices, quotations and clients, and records payments. Reads stock.',
+  store: 'Manages suppliers, purchase orders, receiving, inventory and Adjust Stock. Reads sales.',
+  accountant: 'Reads everything and records payments. Cannot change invoices or stock.',
+  manager: 'Everything except the Users page and editing Company Profile.',
+  admin: 'Full access, including Users and Company Profile.'
+};
+function updateRoleNote() {
+  const sel = document.getElementById('u-role');
+  const note = document.getElementById('u-role-note');
+  if (sel && note) note.textContent = ROLE_NOTES[sel.value] || '';
+}
+document.getElementById('u-role').addEventListener('change', updateRoleNote);
+
+async function renderUserCompanies(selectedIds) {
+  const box = document.getElementById('u-companies');
+  if (!box) return;
+  box.innerHTML = '<span style="font-size:12px; color:var(--sub);">Loading...</span>';
+  let list = [];
+  try { list = await api('/api/companies'); } catch (e) { list = []; }
+  if (!Array.isArray(list) || !list.length) {
+    box.innerHTML = '<span style="font-size:12px; color:var(--sub);">No companies found.</span>';
+    return;
+  }
+  box.innerHTML = list.map(function (c) {
+    const on = (selectedIds || []).indexOf(c.id) !== -1 ? ' checked' : '';
+    return '<label style="display:flex; align-items:center; gap:8px; font-size:13px; font-weight:500; color:var(--ink); margin:0;">'
+      + '<input type="checkbox" class="u-company-cb" value="' + c.id + '"' + on + ' style="width:auto;"> '
+      + String(c.name || ('Company ' + c.id)).replace(/</g, '&lt;') + ' (' + (c.currency || 'USD') + ')</label>';
+  }).join('');
+}
+function readUserCompanyIds() {
+  return Array.prototype.slice.call(document.querySelectorAll('.u-company-cb:checked'))
+    .map(function (cb) { return parseInt(cb.value, 10); });
+}
+
+// ==========================================================
+// ACCOUNTING (Stage 1): chart of accounts + manual journals
+// ==========================================================
+const acc = { tab: 'accounts', accounts: [], journals: [], editingAccountId: null, editingJournalId: null, readOnly: false, lineSeq: 0 };
+
+function accEsc(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function accMoney(v) {
+  const n = Number(v || 0);
+  return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function accCents(text) {
+  const n = parseFloat(String(text == null ? '' : text).replace(/,/g, ''));
+  return isFinite(n) && n > 0 ? Math.round(n * 100) : 0;
+}
+function accToday() {
+  const d = new Date();
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+}
+function accPill(status) {
+  const cls = status === 'Posted' ? 'status-Paid' : (status === 'Reversed' ? 'status-Overdue' : 'status-Draft');
+  return '<span class="status-pill ' + cls + '">' + accEsc(status) + '</span>';
+}
+async function accJson(path, method, body) {
+  const opts = { method: method };
+  if (body !== undefined) { opts.headers = { 'Content-Type': 'application/json' }; opts.body = JSON.stringify(body); }
+  return api(path, opts);
+}
+
+function switchAccTab(tab) {
+  acc.tab = tab === 'journals' ? 'journals' : 'accounts';
+  document.querySelectorAll('#acc-tabs .report-tab').forEach(b => b.classList.toggle('active', b.dataset.accTab === acc.tab));
+  document.getElementById('acc-pane-accounts').style.display = acc.tab === 'accounts' ? '' : 'none';
+  document.getElementById('acc-pane-journals').style.display = acc.tab === 'journals' ? '' : 'none';
+  if (acc.tab === 'accounts') loadAccounts(); else loadJournals();
+}
+
+// ---------- accounts ----------
+async function loadAccounts() {
+  try { acc.accounts = await accJson('/api/accounting/accounts', 'GET'); }
+  catch (err) { toastErr(err.message); acc.accounts = []; }
+  renderAccounts();
+}
+function renderAccounts() {
+  const body = document.getElementById('acc-account-rows');
+  if (!acc.accounts.length) {
+    body.innerHTML = '<tr><td colspan="4" class="empty">No accounts yet. Click + Add Account to create the first one.</td></tr>';
+    return;
+  }
+  const byId = {};
+  acc.accounts.forEach(a => { byId[a.id] = a; });
+  body.innerHTML = acc.accounts.map(a => {
+    const child = a.parent_id && byId[a.parent_id] ? ' <span style="color:var(--sub); font-size:12px;">(under ' + accEsc(byId[a.parent_id].code) + ')</span>' : '';
+    return '<tr style="cursor:pointer;" data-acc-id="' + a.id + '"><td><strong>' + accEsc(a.code) + '</strong></td><td>' + accEsc(a.name) + child + '</td><td>' + accEsc(a.type) + '</td><td>'
+      + '<span class="status-pill ' + (a.is_active ? 'status-Paid' : 'status-Draft') + '">' + (a.is_active ? 'Active' : 'Inactive') + '</span></td></tr>';
+  }).join('');
+  body.querySelectorAll('tr[data-acc-id]').forEach(tr => tr.addEventListener('click', () => openAccountModal(parseInt(tr.dataset.accId, 10))));
+}
+function openAccountModal(id) {
+  acc.editingAccountId = id || null;
+  const a = id ? acc.accounts.find(x => x.id === id) : null;
+  document.getElementById('acc-account-title').textContent = a ? 'Edit account' : 'Add account';
+  document.getElementById('acc-code').value = a ? a.code : '';
+  document.getElementById('acc-name').value = a ? a.name : '';
+  document.getElementById('acc-type').value = a ? a.type : 'Asset';
+  document.getElementById('acc-active').checked = a ? !!a.is_active : true;
+  const sel = document.getElementById('acc-parent');
+  sel.innerHTML = '<option value="">None (top level)</option>' + acc.accounts
+    .filter(x => !a || x.id !== a.id)
+    .map(x => '<option value="' + x.id + '">' + accEsc(x.code) + ' - ' + accEsc(x.name) + '</option>').join('');
+  sel.value = a && a.parent_id ? String(a.parent_id) : '';
+  document.getElementById('acc-account-delete').style.display = a ? 'inline-block' : 'none';
+  document.getElementById('acc-account-overlay').classList.add('show');
+}
+function closeAccountModal() { document.getElementById('acc-account-overlay').classList.remove('show'); }
+
+// ---------- journals ----------
+async function loadJournals() {
+  const status = document.getElementById('acc-journal-filter').value;
+  try {
+    acc.journals = await accJson('/api/accounting/journals' + (status ? '?status=' + encodeURIComponent(status) : ''), 'GET');
+  } catch (err) { toastErr(err.message); acc.journals = []; }
+  renderJournals();
+}
+function renderJournals() {
+  const body = document.getElementById('acc-journal-rows');
+  if (!acc.journals.length) {
+    body.innerHTML = '<tr><td colspan="8" class="empty">No journal entries yet.</td></tr>';
+    return;
+  }
+  body.innerHTML = acc.journals.map(j => {
+    const btns = ['<button type="button" class="btn ghost sm" data-j-act="open" data-id="' + j.id + '">' + (j.status === 'Draft' ? 'Edit' : 'View') + '</button>'];
+    if (j.status === 'Draft') btns.push('<button type="button" class="btn sm" data-j-act="post" data-id="' + j.id + '">Post</button>');
+    if (j.status === 'Draft') btns.push('<button type="button" class="btn ghost sm" data-j-act="delete" data-id="' + j.id + '" style="color:var(--danger); border-color:var(--danger);">Delete</button>');
+    if (j.status === 'Posted' && !j.reversal_of_id) btns.push('<button type="button" class="btn ghost sm" data-j-act="reverse" data-id="' + j.id + '">Reverse</button>');
+    return '<tr><td>' + accEsc(j.entry_date) + '</td><td><strong>' + accEsc(j.entry_number) + '</strong></td><td>' + accEsc(j.reference || '') + '</td><td>'
+      + accEsc((j.description || '').slice(0, 80)) + '</td><td style="text-align:right;">' + accMoney(j.total_debit) + '</td><td style="text-align:right;">'
+      + accMoney(j.total_credit) + '</td><td>' + accPill(j.status) + '</td><td style="white-space:nowrap; display:flex; gap:6px;">' + btns.join('') + '</td></tr>';
+  }).join('');
+}
+
+function accAccountOptions(selectedId) {
+  const usable = acc.accounts.filter(a => a.is_active || a.id === selectedId);
+  return '<option value="">Choose account...</option>' + usable.map(a =>
+    '<option value="' + a.id + '"' + (a.id === selectedId ? ' selected' : '') + '>' + accEsc(a.code) + ' - ' + accEsc(a.name) + '</option>').join('');
+}
+function addJournalLine(line) {
+  line = line || {};
+  const tr = document.createElement('tr');
+  tr.className = 'acc-line';
+  const ro = acc.readOnly ? ' disabled' : '';
+  tr.innerHTML = '<td><select class="acc-l-account" style="width:100%;"' + ro + '>' + accAccountOptions(line.account_id) + '</select></td>'
+    + '<td><input type="text" inputmode="decimal" class="acc-l-debit" style="text-align:right; width:100%;" value="' + accEsc(Number(line.debit) > 0 ? line.debit : '') + '"' + ro + '></td>'
+    + '<td><input type="text" inputmode="decimal" class="acc-l-credit" style="text-align:right; width:100%;" value="' + accEsc(Number(line.credit) > 0 ? line.credit : '') + '"' + ro + '></td>'
+    + '<td><input type="text" class="acc-l-desc" maxlength="255" style="width:100%;" value="' + accEsc(line.description || '') + '"' + ro + '></td>'
+    + '<td>' + (acc.readOnly ? '' : '<button type="button" class="btn ghost sm acc-l-remove" title="Remove line">&times;</button>') + '</td>';
+  document.getElementById('acc-j-lines').appendChild(tr);
+  const debit = tr.querySelector('.acc-l-debit');
+  const credit = tr.querySelector('.acc-l-credit');
+  debit.addEventListener('input', () => { if (accCents(debit.value) > 0) credit.value = ''; updateJournalTotals(); });
+  credit.addEventListener('input', () => { if (accCents(credit.value) > 0) debit.value = ''; updateJournalTotals(); });
+  tr.querySelector('.acc-l-account').addEventListener('change', updateJournalTotals);
+  const rm = tr.querySelector('.acc-l-remove');
+  if (rm) rm.addEventListener('click', () => { tr.remove(); updateJournalTotals(); });
+}
+function readJournalLines() {
+  return Array.prototype.slice.call(document.querySelectorAll('#acc-j-lines .acc-line')).map(tr => {
+    const d = accCents(tr.querySelector('.acc-l-debit').value);
+    const c = accCents(tr.querySelector('.acc-l-credit').value);
+    const acct = tr.querySelector('.acc-l-account').value;
+    return { account_id: acct ? parseInt(acct, 10) : null, debitC: d, creditC: c, description: tr.querySelector('.acc-l-desc').value.trim() };
+  });
+}
+function updateJournalTotals() {
+  const lines = readJournalLines();
+  const td = lines.reduce((s, l) => s + l.debitC, 0);
+  const tc = lines.reduce((s, l) => s + l.creditC, 0);
+  document.getElementById('acc-j-td').textContent = accMoney(td / 100);
+  document.getElementById('acc-j-tc').textContent = accMoney(tc / 100);
+  const st = document.getElementById('acc-j-status');
+  const complete = lines.length >= 2 && lines.every(l => l.account_id && (l.debitC > 0) !== (l.creditC > 0));
+  const balanced = td === tc && td > 0;
+  let msg, color;
+  if (lines.length < 2) { msg = 'Add at least 2 lines'; color = 'var(--amber)'; }
+  else if (!complete) { msg = 'Each line needs an account and a debit or a credit'; color = 'var(--amber)'; }
+  else if (!balanced) { msg = 'Out of balance by ' + accMoney(Math.abs(td - tc) / 100); color = 'var(--danger)'; }
+  else { msg = 'Balanced'; color = 'var(--success)'; }
+  st.textContent = msg; st.style.color = color;
+  document.getElementById('acc-journal-save').disabled = acc.readOnly || !(complete && balanced);
+}
+async function openJournalModal(id) {
+  if (!acc.accounts.length) { try { acc.accounts = await accJson('/api/accounting/accounts', 'GET'); } catch (e) { toastErr(e.message); return; } }
+  acc.editingJournalId = id || null;
+  let j = null;
+  if (id) {
+    try { j = await accJson('/api/accounting/journals/' + id, 'GET'); } catch (e) { toastErr(e.message); return; }
+  } else if (!acc.accounts.some(a => a.is_active)) {
+    toastErr('Create at least one account first (Chart of Accounts tab).');
+    return;
+  }
+  acc.readOnly = !!(j && j.status !== 'Draft');
+  document.getElementById('acc-journal-title').textContent = j ? (j.entry_number + ' (' + j.status + ')') : 'New journal';
+  document.getElementById('acc-j-date').value = j ? j.entry_date : accToday();
+  document.getElementById('acc-j-ref').value = j ? (j.reference || '') : '';
+  document.getElementById('acc-j-desc').value = j ? (j.description || '') : '';
+  ['acc-j-date', 'acc-j-ref', 'acc-j-desc'].forEach(i => { document.getElementById(i).disabled = acc.readOnly; });
+  document.getElementById('acc-j-lines').innerHTML = '';
+  if (j) j.lines.forEach(addJournalLine); else { addJournalLine(); addJournalLine(); }
+  document.getElementById('acc-add-line').style.display = acc.readOnly ? 'none' : '';
+  document.getElementById('acc-journal-save').style.display = acc.readOnly ? 'none' : '';
+  document.getElementById('acc-journal-cancel').textContent = acc.readOnly ? 'Close' : 'Cancel';
+  updateJournalTotals();
+  document.getElementById('acc-journal-overlay').classList.add('show');
+}
+function closeJournalModal() { document.getElementById('acc-journal-overlay').classList.remove('show'); }
+
+function wireAccounting() {
+  if (wireAccounting.done) return;
+  wireAccounting.done = true;
+  document.querySelectorAll('#acc-tabs .report-tab').forEach(b => b.addEventListener('click', () => switchAccTab(b.dataset.accTab)));
+  document.getElementById('acc-new-account-btn').addEventListener('click', () => openAccountModal(null));
+  document.getElementById('acc-account-cancel').addEventListener('click', closeAccountModal);
+  document.getElementById('acc-journal-cancel').addEventListener('click', closeJournalModal);
+  document.getElementById('acc-new-journal-btn').addEventListener('click', () => openJournalModal(null));
+  document.getElementById('acc-add-line').addEventListener('click', () => { addJournalLine(); updateJournalTotals(); });
+  document.getElementById('acc-journal-filter').addEventListener('change', loadJournals);
+
+  document.getElementById('acc-account-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const payload = {
+      code: document.getElementById('acc-code').value.trim(),
+      name: document.getElementById('acc-name').value.trim(),
+      type: document.getElementById('acc-type').value,
+      is_active: document.getElementById('acc-active').checked,
+      parent_id: document.getElementById('acc-parent').value ? parseInt(document.getElementById('acc-parent').value, 10) : null
+    };
+    try {
+      if (acc.editingAccountId) await accJson('/api/accounting/accounts/' + acc.editingAccountId, 'PUT', payload);
+      else await accJson('/api/accounting/accounts', 'POST', payload);
+      toastOk('Account saved');
+      closeAccountModal();
+      await loadAccounts();
+    } catch (err) { toastErr(err.message); }
+  });
+  document.getElementById('acc-account-delete').addEventListener('click', async () => {
+    if (!acc.editingAccountId || !confirm('Delete this account? This cannot be undone.')) return;
+    try {
+      await accJson('/api/accounting/accounts/' + acc.editingAccountId, 'DELETE');
+      toastOk('Account deleted');
+      closeAccountModal();
+      await loadAccounts();
+    } catch (err) { toastErr(err.message); }
+  });
+
+  document.getElementById('acc-journal-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (acc.readOnly) return;
+    const lines = readJournalLines().map(l => ({
+      account_id: l.account_id,
+      debit: (l.debitC / 100).toFixed(2),
+      credit: (l.creditC / 100).toFixed(2),
+      description: l.description || null
+    }));
+    const payload = {
+      entry_date: document.getElementById('acc-j-date').value,
+      reference: document.getElementById('acc-j-ref').value.trim() || null,
+      description: document.getElementById('acc-j-desc').value.trim() || null,
+      lines: lines
+    };
+    try {
+      if (acc.editingJournalId) await accJson('/api/accounting/journals/' + acc.editingJournalId, 'PUT', payload);
+      else await accJson('/api/accounting/journals', 'POST', payload);
+      toastOk('Draft saved');
+      closeJournalModal();
+      await loadJournals();
+    } catch (err) { toastErr(err.message); }
+  });
+
+  document.getElementById('acc-journal-rows').addEventListener('click', async (e) => {
+    const btn = e.target.closest('button[data-j-act]');
+    if (!btn) return;
+    const id = parseInt(btn.dataset.id, 10);
+    const act = btn.dataset.jAct;
+    try {
+      if (act === 'open') { await openJournalModal(id); return; }
+      if (act === 'post') {
+        if (!confirm('Post this journal? After posting it is locked and can only be reversed.')) return;
+        await accJson('/api/accounting/journals/' + id + '/post', 'POST', {});
+        toastOk('Journal posted');
+      } else if (act === 'delete') {
+        if (!confirm('Delete this draft journal?')) return;
+        await accJson('/api/accounting/journals/' + id, 'DELETE');
+        toastOk('Draft deleted');
+      } else if (act === 'reverse') {
+        const reason = prompt('Reverse this journal? This creates a new posted journal with debits and credits swapped.\n\nReason (optional):');
+        if (reason === null) return;
+        await accJson('/api/accounting/journals/' + id + '/reverse', 'POST', reason.trim() ? { reason: reason.trim() } : {});
+        toastOk('Journal reversed');
+      }
+      await loadJournals();
+    } catch (err) { toastErr(err.message); }
+  });
+
+  const navBtn = document.querySelector('.nav-item[data-view="accounting"]');
+  if (navBtn) navBtn.addEventListener('click', () => switchAccTab(acc.tab));
+}
+wireAccounting();
+
 // --- Low-stock bell ---
 function renderInventoryChart() {
   const container = document.getElementById('inventory-chart');
