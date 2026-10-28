@@ -1,0 +1,56 @@
+﻿=========================================================
+BACKUP INFO - SoftSolution ChepTech / Aspicom Invoicing
+=========================================================
+
+Backup date: 2026-10-16
+Backup name: invoice16-10-2026
+Reason:      Pre-Phase-1 ERP development snapshot
+             (before adding Stock Movement Foundation)
+
+Location:    C:\Users\farha\OneDrive\Pictures\invoicing_project\backups\invoice16-10-2026\
+
+CONTENTS
+---------------------------------------------------------
+code/           Full source code
+database/       Full MySQL dump of aspicom_invoicing database
+config/         .env.copy - local environment + secrets
+uploads/        Logo, stamp, uploaded images
+BACKUP_INFO.txt This file
+
+WHAT'S IN THE SYSTEM AT THIS SNAPSHOT
+---------------------------------------------------------
+- Auth system (login + JWT + roles)
+- User management (root + admin + user)
+- Multi-company support
+- Multi-currency (USD + AED)
+- Invoices + quotations + payments
+- Client statements
+- VAT Report
+- Low-stock bell + chart
+- Searchable client picker
+- Supplier PDF import
+- Company logo/stamp upload
+- Full-page layout
+- Colorful dashboard cards
+
+RESTORE INSTRUCTIONS
+---------------------------------------------------------
+
+1) RESTORE CODE:
+   Copy contents of code/ back to:
+   C:\Users\farha\OneDrive\Pictures\invoicing_project\
+
+2) RESTORE DATABASE:
+   Open PowerShell and run:
+   Get-Content 'C:\Users\farha\OneDrive\Pictures\invoicing_project\backups\invoice16-10-2026\database\aspicom_invoicing.sql' | mysql -u root -pinfra142 aspicom_invoicing
+   (If mysql CLI not available, use the restore script below)
+
+3) RESTORE ENV:
+   Copy config\.env.copy to .env in project root.
+
+4) RESTORE UPLOADS:
+   Copy uploads\* back to invoicing_project\uploads\
+
+5) RESTART FLASK:
+   C:\Users\farha\OneDrive\Pictures\invoicing_project\venv\Scripts\python.exe app.py
+

@@ -1,0 +1,278 @@
+﻿=========================================================
+PHASE 1 — STOCK MOVEMENT FOUNDATION
+SoftSolution ChepTech IMS
+=========================================================
+
+CONTEXT
+  You have the AI_CONTEXT brief above. Every rule there applies.
+  Frontend file is invoicing.html (~2700 lines).
+  Backup completed at: backups/invoice16-10-2026/
+
+TASK
+  Build Phase 1 — Stock Movement Foundation.
+
+=========================================================
+WHAT TO BUILD
+=========================================================
+
+1. DATABASE MIGRATION
+
+  Create table stock_movements:
+
+    CREATE TABLE stock_movements (
+        id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        inventory_id    INT UNSIGNED NOT NULL,
+        product_name    VARCHAR(255) NOT NULL,
+        change_qty      DECIMAL(10,2) NOT NULL,
+        balance_after   DECIMAL(10,2) NOT NULL,
+        reason          ENUM('initial','invoice_created','invoice_deleted',
+                             'invoice_edited','quotation_converted',
+                             'stock_in','stock_out','damage','expiry',
+                             'return','rtv','correction') NOT NULL,
+        reference_id    INT UNSIGNED NULL,
+        reference_label VARCHAR(255) NULL,
+        notes           TEXT NULL,
+        created_by      INT UNSIGNED NULL,
+        created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_sm_inventory (inventory_id),
+        INDEX idx_sm_reason (reason),
+        INDEX idx_sm_created (created_at),
+        INDEX idx_sm_reference (reference_id)
+    ) ENGINE=InnoDB;
+
+  No FK on inventory_id (survives product deletions).
+  No FK on created_by (survives user deletions).
+
+2. MODEL — models.py
+
+  Add StockMovement class:
+
+    class StockMovement(db.Model):
+        __tablename__ = "stock_movements"
+        id = db.Column(db.Integer, primary_key=True)
+        inventory_id = db.Column(db.Integer, nullable=False, index=True)
+        product_name = db.Column(db.String(255), nullable=False)
+        change_qty = db.Column(db.Numeric(10, 2), nullable=False)
+        balance_after = db.Column(db.Numeric(10, 2), nullable=False)
+        reason = db.Column(db.Enum(
+            "initial", "invoice_created", "invoice_deleted",
+            "invoice_edited", "quotation_converted",
+            "stock_in", "stock_out", "damage", "expiry",
+            "return", "rtv", "correction",
+            name="stock_movement_reason"), nullable=False, index=True)
+        reference_id = db.Column(db.Integer, nullable=True)
+        reference_label = db.Column(db.String(255), nullable=True)
+        notes = db.Column(db.Text, nullable=True)
+        created_by = db.Column(db.Integer, nullable=True)
+        created_at = db.Column(db.DateTime, default=datetime.utcnow, 
+                               nullable=False, index=True)
+
+        def to_dict(self):
+            return {
+                "id": self.id,
+                "inventory_id": self.inventory_id,
+                "product_name": self.product_name,
+                "change_qty": _dec(self.change_qty),
+                "balance_after": _dec(self.balance_after),
+                "reason": self.reason,
+                "reference_id": self.reference_id,
+                "reference_label": self.reference_label,
+                "notes": self.notes,
+                "created_by": self.created_by,
+                "created_at": self.created_at.isoformat() 
+                              if self.created_at else None,
+            }
+
+3. NEW FILE — utils/stock_movements.py
+
+  Helper functions:
+
+    def log_movement(inventory_id, product_name, change_qty, 
+                     reason, reference_id=None, reference_label=None,
+                     notes=None, created_by=None):
+        """Creates a movement, updates inventory.balance, 
+        returns the movement row.
+        1. Find Inventory by id
+        2. new_balance = max(0, old_balance + change_qty)
+        3. Set inv.balance = new_balance
+        4. Create StockMovement with balance_after=new_balance
+        5. Return movement (do NOT commit — caller commits)
+        """
+
+    def find_inventory_by_name(product_name):
+        """Case-insensitive lookup. Returns Inventory row or None."""
+
+4. HOOK INTO INVOICE ROUTES — routes/invoices.py
+
+  Modify create_invoice:
+    - After invoice is flushed, for document_type='invoice' only:
+      For each line item in the invoice:
+        - Find matching inventory product (case-insensitive on name)
+        - If found:
+            log_movement(
+              inventory_id=match.id,
+              product_name=match.product,
+              change_qty=-item.qty,
+              reason="invoice_created",
+              reference_id=invoice.id,
+              reference_label=invoice.invoice_number,
+              created_by=<current user id if available>
+            )
+    - Remove old direct inventory decrement logic — log_movement 
+      handles balance now
+    - Quotations do NOT affect stock
+
+  Modify update_invoice (PUT):
+    - If items changed, compare old qty vs new qty per line
+    - For each line whose qty changed:
+        Smaller: log_movement(+delta, reason="invoice_edited", ...)
+        Larger: log_movement(-delta, reason="invoice_edited", ...)
+    - New line: log_movement(-qty, reason="invoice_edited", ...)
+    - Removed line: log_movement(+old_qty, reason="invoice_edited", ...)
+    - Only for document_type='invoice'
+
+  Modify delete_invoice:
+    - Before deletion, for each line item (invoice only):
+        log_movement(+item.qty, reason="invoice_deleted",
+          reference_id=invoice.id, reference_label=invoice.invoice_number)
+
+  Modify convert_to_invoice:
+    - After new invoice created, for each line item:
+        log_movement(-item.qty, reason="quotation_converted",
+          reference_id=new_invoice.id, 
+          reference_label=new_invoice.invoice_number)
+
+5. NEW FILE — routes/stock_movements.py
+
+  Blueprint: stock_movements_bp
+  Register in app.py with url_prefix="/api"
+
+  Endpoints:
+
+    GET /api/inventory/<id>/movements
+      Query: from, to (ISO dates), reason, limit (default 100)
+      Response: { data: [movements...], error: null, message: null }
+      Requires auth (any role)
+
+    GET /api/stock-movements
+      Query: from, to, reason, inventory_id, search (product name),
+             limit (default 100), offset (default 0)
+      Response: { data: { movements: [...], total: N }, error: null }
+      Requires auth (any role)
+
+  Both sorted by created_at DESC.
+
+6. BACKFILL SCRIPT — scripts/backfill_movements.py
+
+  One-time script (with "YES" confirmation prompt):
+
+    For every row in inventory:
+      Check if a movement already exists for that inventory_id 
+      with reason='initial'
+      If not, INSERT movement:
+        reason='initial', change_qty=balance, balance_after=balance,
+        notes='Baseline at Phase 1 introduction'
+      Do NOT change inventory.balance (already correct)
+
+    Print how many backfilled + total count after.
+    Safe to run twice.
+
+7. FRONTEND — frontend/invoicing.html
+
+  7a. SIDEBAR
+    Add "Movements" nav item between "Inventory" and "Supplier Bills":
+      <button class="nav-item" data-view="movements">Movements</button>
+    Add 'movements' to the hardcoded views array in the click handler.
+
+  7b. NEW VIEW — <div id="view-movements" style="display:none;">
+    - h1 "Stock Movements"
+    - lede "Every stock change, logged automatically."
+    - Toolbar filters:
+        From date, To date
+        Reason dropdown (All + all 12 reasons)
+        Product search box
+        Refresh button
+    - Table:
+        Date | Product | Change | Balance | Reason | Reference | By
+    - Colored pills for reason (green for in, red for out, amber for 
+      adjustments, gray for invoice-related)
+
+  7c. MOVEMENTS MODAL
+    <div class="overlay" id="movements-overlay">
+      <div class="modal" style="max-width:700px;">
+        <h2 id="movements-title">Movements</h2>
+        <div id="movements-body"></div>
+        <div class="modal-actions">
+          <div></div>
+          <div class="right">
+            <button class="btn ghost" id="close-movements-btn">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  7d. INVENTORY ROW — "Movements" BUTTON
+    Modify renderInventory() so each row has a small 
+    "Movements" button that calls openMovementsForProduct(id).
+
+  7e. JS FUNCTIONS
+    - renderMovements() — fetch /api/stock-movements, render global table
+    - openMovementsForProduct(id) — fetch /api/inventory/<id>/movements, 
+      render in modal
+    - Filter handlers: date/reason/search -> refetch
+    - Formatting: change_qty shown as "+N" or "-N" with color
+
+=========================================================
+CONSTRAINTS
+=========================================================
+  - Money/Decimal rules as in context
+  - Envelope { data, error, message } on every endpoint
+  - Never trust client-side quantities for movement math — 
+    server recomputes from invoice items
+  - All SQLAlchemy ORM (no raw SQL)
+  - File line endings LF (\n)
+  - Frontend patches: SINGLE-LINE or TWO-LINE anchors ONLY
+  - Full file replacements for new .py files
+  - Include backup step + SUCCESS/ERROR print in every patch
+
+=========================================================
+DELIVERY ORDER (STAGED — STOP BETWEEN)
+=========================================================
+
+STAGE A — Backend (full):
+  1. Full models.py (with StockMovement added)
+  2. Full utils/stock_movements.py
+  3. Full routes/stock_movements.py
+  4. Full routes/invoices.py (with hooks)
+  5. Full app.py (with blueprint registered)
+  6. Full scripts/backfill_movements.py
+  7. DB migration command (PowerShell)
+  8. Test commands (PowerShell):
+       - Create invoice -> check movements
+       - Delete invoice -> check revert movement
+       - Edit invoice qty -> check adjustment movement
+       - Query /api/stock-movements
+       - Query /api/inventory/<id>/movements
+       - Run backfill script
+  STOP. Wait for test results.
+
+STAGE B — Frontend (surgical patches):
+  1. Sidebar HTML (add Movements nav)
+  2. Views array (add 'movements')
+  3. New view HTML (#view-movements)
+  4. Movements modal HTML (#movements-overlay)
+  5. JS functions (renderMovements, openMovementsForProduct, filters)
+  6. Modify renderInventory() to add per-row Movements button
+  STOP. Wait for test results.
+
+Each frontend patch: single-line anchors + PowerShell apply 
+block with backup + SUCCESS/ERROR print.
+
+=========================================================
+START
+=========================================================
+Confirm understanding, then begin STAGE A.
+If anything unclear, ask BEFORE writing code.
+
+Do NOT use multi-line heredoc find-strings for patches.
+Do NOT skip the STOP between stages.

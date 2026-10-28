@@ -1,0 +1,24 @@
+# config.yaml — Aspicom LLC Invoice Management System
+
+company:
+  name: "Aspicom LLC"
+  address: "Office # 10, Level 1, Sharjah Media City, Sharjah, UAE"
+  trn: "100441082300003"
+  phone: "+971 527600033"
+  email: "Info@aspicomllc.com"
+  website: "www.aspicomllc.com"
+  signee: "Accounts"
+
+vat:
+  fallback_percent: 5
+  require_explicit: true
+
+inventory:
+  low_stock_threshold: 20
+
+logging:
+  level: "INFO"
+  dir: "logs"
+  filename_pattern: "invoice_%Y%m%d.log"
+  format: "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
+  date_format: "%Y-%m-%d %H:%M:%S"

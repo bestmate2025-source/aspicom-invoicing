@@ -1,0 +1,117 @@
+﻿=========================================================
+SOFTSOLUTION CHEPTECH IMS — AI CONTEXT BRIEF
+=========================================================
+
+PURPOSE
+  This is the condensed context for any AI assistant working on 
+  SoftSolution ChepTech IMS. Paste this at the start of any new 
+  chat before giving a task.
+
+OWNER
+  Farhan (non-professional developer, learning as he goes)
+  Business: Aspicom LLC (partner Usman) — UAE pharmaceutical 
+  wholesale. This app is branded SoftSolution ChepTech.
+
+WORKING STYLE (CRITICAL — FOLLOW THESE)
+  - Explain simply, no jargon without definition
+  - Give complete copy-paste commands, not fragments
+  - Tell exactly WHERE to paste code (file + line + context)
+  - Prefer FULL FILE REPLACEMENTS over multi-part patches
+  - For frontend patches: SINGLE-LINE or TWO-LINE anchors only
+  - Include backup step + SUCCESS/ERROR print in every patch
+  - Warn before destructive operations
+  - Build in stages, pause between, let user test
+  - One command at a time during debugging
+  - Wait for output before next step
+  - Never assume — ask for confirmation
+
+PROJECT STATE
+  Production URL:  https://bestmate2025-source.github.io/aspicom-invoicing/
+  Backend API:     https://aspicom-invoicing-production.up.railway.app
+  GitHub repo:     https://github.com/bestmate2025-source/aspicom-invoicing
+  Local dev:       C:\Users\farha\OneDrive\Pictures\invoicing_project
+
+TECH STACK
+  Backend:  Python 3.10 + Flask + SQLAlchemy ORM + PyMySQL
+  Auth:     JWT (PyJWT 2.15.1) + werkzeug password hashing
+  Frontend: Single HTML file (frontend/invoicing.html, ~2700 lines)
+            Vanilla JavaScript, no framework
+            Pine green #0B5D52 + amber #B8722E
+  Database: MySQL 8, 10 tables
+  Money:    DECIMAL(12,2), always Decimal() via str(), never float
+  Hosting:  Railway (backend + MySQL) + GitHub Pages (frontend)
+
+KEY CONVENTIONS
+  - Every API returns: { data, error, message }
+  - Money as strings: "1200.00"
+  - IDs from HTML are STRINGS -> parseInt(id, 10)
+  - camelCase in JS, snake_case in DB/JSON
+  - Line endings: LF (\n) NOT CRLF
+  - 4-space indentation in Python
+  - ALWAYS start Flask with venv Python:
+      C:\Users\farha\OneDrive\Pictures\invoicing_project\venv\Scripts\python.exe app.py
+    (NOT plain `python app.py`)
+
+DATABASE TABLES (10 existing)
+  clients, invoices, invoice_items, invoice_payments, inventory,
+  company, parsed_invoices, import_log, invoice_audit, users
+
+ROLES
+  admin — full access
+  user  — view-only
+  root user (farhan) — cannot be deleted/demoted/deactivated
+
+CURRENT FEATURES (all working in production)
+  - Auth login + user management
+  - Multi-company + multi-currency (USD/AED)
+  - Invoices + quotations + payments
+  - Client statements + VAT Report
+  - Low-stock bell + dashboard chart
+  - Supplier PDF import
+  - Company logo/stamp uploads
+  - Full-page layout + colorful dashboard
+
+DEPLOY WORKFLOW (8 steps)
+  1. Copy frontend/invoicing.html -> docs/index.html
+  2. Swap API_URL to Railway in docs/index.html
+  3. Verify URL with Select-String
+  4. node --check on extracted <script> block
+  5. git status
+  6. Delete .bak files + git add
+  7. git commit + git push
+  8. Wait 2 min -> test production in Incognito
+
+ERP ROADMAP (7 phases)
+  Phase 1: Stock Movement Foundation  <- CURRENT
+  Phase 2: Manual Stock Adjustments
+  Phase 3: Supplier Management
+  Phase 4: Purchase Orders + GRN
+  Phase 5: Reports (turnover, aging, valuation)
+  Phase 6: Xero Integration
+  Phase 7: Advanced (auto-reorder, RBAC, batch/expiry, barcode)
+
+CURRENT PHASE 1 SPEC
+  - New table: stock_movements
+  - Every invoice create/delete/edit logs per-line movements
+  - Revert stock on invoice delete
+  - Adjust stock on invoice edit
+  - Baseline backfill (one 'initial' movement per existing product)
+  - Endpoint: GET /api/inventory/<id>/movements
+  - Endpoint: GET /api/stock-movements (global feed)
+  - Frontend: per-product movements modal
+  - Frontend: global "Movements" sidebar tab (between Inventory 
+    and Supplier Bills)
+  - Reason enum: initial, invoice_created, invoice_deleted, 
+    invoice_edited, quotation_converted, stock_in, stock_out, 
+    damage, expiry, return, rtv, correction
+  - Permission: view = anyone, adjust = admin only
+
+BACKUPS
+  Backups exist at:
+    invoicing_project/backups/invoice16-10-2026/
+    Desktop: invoice16-10-2026-backup/
+  Take a new backup BEFORE each major phase.
+
+=========================================================
+END OF CONTEXT BRIEF
+=========================================================
