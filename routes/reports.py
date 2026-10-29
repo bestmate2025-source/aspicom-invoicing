@@ -5,9 +5,21 @@ Registered in app.py with url_prefix="/api/reports".
   GET /api/reports/inventory-valuation          stock value at cost
   GET /api/reports/stock-aging                  how long stock has been sitting
   GET /api/reports/sales-summary?from=&to=      invoiced sales, per currency and per client
+  GET /api/reports/profit-loss?company_id=&from=&to=     Profit & Loss from the books (Wave 3F, admin only)
+  GET /api/reports/balance-sheet?company_id=&to=         Balance Sheet from the books (Wave 3F, admin only)
 
-All three are READ-ONLY. Login is enforced by the app-wide before_request in
-app.py (any logged-in admin or user may read), so no extra decorator is needed.
+All of them are READ-ONLY. Login is enforced by the app-wide before_request in
+app.py (any logged-in admin or user may read the first three). The two financial
+reports (Wave 3F) are ADMIN ONLY, like the Accounting tab.
+
+Wave 3F - financial reports read the POSTED journals (status Posted or Reversed, so a reversed
+entry and its reversal cancel out), one company at a time, in that company's currency:
+  * Accounts are grouped by their TYPE (Asset / Liability / Equity / Income / Expense), so an
+    account you add later is included automatically and the Balance Sheet always balances.
+  * Profit & Loss: Revenue = Income accounts (4000 Sales Revenue), Cost of goods sold = 5000,
+    Expenses = every other Expense account (5100, 5200, 5300, 6000 ... and any you add).
+  * Balance Sheet is "as of" the To date and uses ALL history up to that date (From is ignored),
+    because Equity = Retained Earnings (3000) + the profit earned up to that date.
 
 Honest notes about what the numbers mean:
   * Cost comes from the latest PO line that actually received goods
@@ -18,22 +30,27 @@ Honest notes about what the numbers mean:
     movement. It shows how long ago stock last arrived, not how fast it sells.
   * 1 company = 1 currency. Sales are grouped by company AND currency (the
     currency stored on each invoice), so USD and AED are never added together.
-  * Inventory and purchase orders carry no company or currency of their own
-    (the warehouse is shared). Valuation and aging values are therefore shown
-    in ONE currency: the currency of the primary company (lowest id).
+  * Wave 3A: every company has its own stock and its own purchase orders. Valuation and
+    aging are per company (?company_id=N, default = the primary company, lowest id) and
+    shown in that company's currency. Costs come from that company's own POs.
 """
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal, ROUND_HALF_UP
+from functools import wraps
 
-from flask import Blueprint, request
+from flask import Blueprint, g, request
 from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 
 from extensions import db
-from models import Client, Company, Inventory, Invoice, PurchaseOrder, PurchaseOrderItem, StockMovement
+from models import (
+    Account, Client, Company, Inventory, Invoice, JournalEntry, JournalLine, PurchaseOrder, PurchaseOrderItem,
+    StockMovement,
+)
+from utils.auth import get_current_user
 from utils.responses import api_response
 
 reports_bp = Blueprint("reports", __name__)
@@ -91,24 +108,29 @@ def parse_date(text, label):
 
 
 def build_scope(company_id, company_name, currency) -> dict:
-    """Valuation and aging have no company of their own - see the module notes."""
+    """Valuation and aging are for ONE company - see the module notes."""
     return {
         "company_id": company_id,
         "company_name": company_name,
         "currency": currency or "USD",
-        "note": "Stock is shared by all companies, so it is valued in the primary company's currency.",
+        "note": "This company's own stock, valued in the company's currency.",
     }
 
 
 def build_valuation(items, costs, scope=None) -> dict:
-    """items: (product, balance, selling_price). costs: from latest_costs()."""
+    """items: (product, balance, selling_price[, average_cost]). costs: from latest_costs().
+    Cost used: the average cost if the product has one, else the latest purchase price, else the selling price."""
     rows, total, units = [], Decimal("0"), Decimal("0")
-    for product, balance, price in items:
+    for entry in items:
+        product, balance, price = entry[0], entry[1], entry[2]
+        avg = _dec(entry[3]) if len(entry) > 3 else Decimal("0")
         bal = _dec(balance)
         if bal <= 0:
             continue
         key = _name_key(product)
-        if key in costs:
+        if avg > 0:
+            unit, source = avg, "average_cost"
+        elif key in costs:
             unit, source = costs[key], "purchase"
         else:
             unit, source = _dec(price), "selling_price"
@@ -136,6 +158,7 @@ def build_valuation(items, costs, scope=None) -> dict:
         "total_items": len(rows),
         "total_units": _money(units),
         "items_without_purchase_cost": sum(1 for r in rows if r["cost_source"] == "selling_price"),
+        "items_with_average_cost": sum(1 for r in rows if r["cost_source"] == "average_cost"),
         "items": rows,
     }
 
@@ -231,21 +254,32 @@ def build_sales(groups) -> dict:
 # ----------------------------------------------------------------------
 # Database readers
 # ----------------------------------------------------------------------
-def _load_costs() -> dict:
+def _load_costs(company_id) -> dict:
     q = (
         db.session.query(PurchaseOrderItem.product_name, PurchaseOrderItem.unit_price)
         .join(PurchaseOrder, PurchaseOrder.id == PurchaseOrderItem.po_id)
-        .filter(PurchaseOrderItem.qty_received > 0, PurchaseOrder.status != "Cancelled")
+        .filter(PurchaseOrderItem.qty_received > 0, PurchaseOrder.status != "Cancelled",
+                PurchaseOrder.company_id == company_id)
         .order_by(PurchaseOrder.order_date.asc(), PurchaseOrder.id.asc(), PurchaseOrderItem.id.asc())
     )
     return latest_costs(q.all())
 
 
-def _load_scope() -> dict:
-    row = db.session.query(Company.id, Company.name, Company.currency).order_by(Company.id.asc()).first()
+def _load_scope():
+    """(scope, error_response). ?company_id=N picks the company; no value = the first company."""
+    raw = request.args.get("company_id")
+    query = db.session.query(Company.id, Company.name, Company.currency)
+    if raw not in (None, ""):
+        if not raw.isdigit():
+            return None, (api_response(error="validation_error", message="'company_id' must be a whole number."), 400)
+        row = query.filter(Company.id == int(raw)).first()
+        if row is None:
+            return None, (api_response(error="not_found", message=f"No company with id {raw}."), 404)
+    else:
+        row = query.order_by(Company.id.asc()).first()
     if row is None:
-        return build_scope(None, None, "USD")
-    return build_scope(row[0], row[1], row[2])
+        return build_scope(None, None, "USD"), None
+    return build_scope(row[0], row[1], row[2]), None
 
 
 # ----------------------------------------------------------------------
@@ -253,9 +287,13 @@ def _load_scope() -> dict:
 # ----------------------------------------------------------------------
 @reports_bp.route("/inventory-valuation", methods=["GET"])
 def inventory_valuation():
+    scope, problem = _load_scope()
+    if problem:
+        return problem
     try:
-        items = db.session.query(Inventory.product, Inventory.balance, Inventory.price).all()
-        data = build_valuation(items, _load_costs(), _load_scope())
+        items = db.session.query(Inventory.product, Inventory.balance, Inventory.price, Inventory.avg_cost).filter(
+            Inventory.company_id == scope["company_id"]).all()
+        data = build_valuation(items, _load_costs(scope["company_id"]), scope)
     except SQLAlchemyError:
         db.session.rollback()
         return api_response(error="database_error", message="Could not build the valuation report."), 500
@@ -264,10 +302,13 @@ def inventory_valuation():
 
 @reports_bp.route("/stock-aging", methods=["GET"])
 def stock_aging():
+    scope, problem = _load_scope()
+    if problem:
+        return problem
     try:
         items = db.session.query(
             Inventory.id, Inventory.product, Inventory.balance, Inventory.price, Inventory.updated_at
-        ).filter(Inventory.balance > 0).all()
+        ).filter(Inventory.balance > 0, Inventory.company_id == scope["company_id"]).all()
         last_in = dict(
             db.session.query(StockMovement.inventory_id, func.max(StockMovement.created_at))
             .filter(StockMovement.reason.in_(AGING_REASONS))
@@ -277,7 +318,7 @@ def stock_aging():
             db.session.query(StockMovement.inventory_id, func.min(StockMovement.created_at))
             .group_by(StockMovement.inventory_id).all()
         )
-        data = build_aging(items, last_in, first_any, _load_costs(), datetime.utcnow(), _load_scope())
+        data = build_aging(items, last_in, first_any, _load_costs(scope["company_id"]), datetime.utcnow(), scope)
     except SQLAlchemyError:
         db.session.rollback()
         return api_response(error="database_error", message="Could not build the stock aging report."), 500
@@ -318,3 +359,183 @@ def sales_summary():
     data["from"] = d_from.isoformat() if d_from else None
     data["to"] = d_to.isoformat() if d_to else None
     return api_response(data=data)
+
+
+# ======================================================================
+# Wave 3F - Profit & Loss and Balance Sheet (from the journals)
+# ======================================================================
+CODE_SALES = "4000"
+CODE_COGS = "5000"
+PL_NAMED_EXPENSES = ("5100", "5200", "5300", "6000")          # always listed, even when 0
+BS_NAMED = {
+    "Asset": ("1000", "1100", "1200", "1300", "1400"),
+    "Liability": ("2000", "2100"),
+    "Equity": ("3000",),
+}
+_TWO = Decimal("0.01")
+
+
+def _d(value) -> Decimal:
+    return Decimal(str(value if value is not None else 0))
+
+
+def _m(value: Decimal) -> str:
+    return f"{value.quantize(_TWO, rounding=ROUND_HALF_UP):.2f}"
+
+
+def _clean_rows(rows):
+    """rows = (code, name, type, debit, credit) -> same with Decimals."""
+    return [(code, name, typ, _d(debit), _d(credit)) for code, name, typ, debit, credit in rows]
+
+
+def build_profit_loss(rows) -> dict:
+    """Pure. Revenue - COGS = Gross profit; Gross profit - Expenses = Net profit. All amounts are Decimals."""
+    revenue_lines, expense_lines = [], []
+    revenue = cogs = expenses = Decimal("0")
+    for code, name, typ, debit, credit in _clean_rows(rows):
+        if typ == "Income":
+            amount = credit - debit
+            if amount != 0 or code == CODE_SALES:
+                revenue_lines.append({"code": code, "name": name, "amount": amount})
+            revenue += amount
+        elif typ == "Expense":
+            amount = debit - credit
+            if code == CODE_COGS:
+                cogs += amount
+            else:
+                if amount != 0 or code in PL_NAMED_EXPENSES:
+                    expense_lines.append({"code": code, "name": name, "amount": amount})
+                expenses += amount
+    gross = revenue - cogs
+    net = gross - expenses
+    return {
+        "revenue": revenue, "revenue_lines": revenue_lines, "cogs": cogs, "gross_profit": gross,
+        "expenses": expense_lines, "total_expenses": expenses, "net_profit": net,
+    }
+
+
+def build_balance_sheet(rows) -> dict:
+    """Pure. Assets = Liabilities + Equity, where Equity includes the profit earned to date."""
+    out = {"Asset": [], "Liability": [], "Equity": []}
+    totals = {"Asset": Decimal("0"), "Liability": Decimal("0"), "Equity": Decimal("0")}
+    profit = Decimal("0")
+    for code, name, typ, debit, credit in _clean_rows(rows):
+        if typ == "Income":
+            profit += credit - debit
+        elif typ == "Expense":
+            profit -= debit - credit
+        elif typ in out:
+            amount = (debit - credit) if typ == "Asset" else (credit - debit)
+            if amount != 0 or code in BS_NAMED[typ]:
+                out[typ].append({"code": code, "name": name, "amount": amount})
+            totals[typ] += amount
+    equity = list(out["Equity"])
+    equity.append({"code": None, "name": "Profit to date (current earnings)", "amount": profit})
+    total_equity = totals["Equity"] + profit
+    right = totals["Liability"] + total_equity
+    return {
+        "assets": out["Asset"], "total_assets": totals["Asset"],
+        "liabilities": out["Liability"], "total_liabilities": totals["Liability"],
+        "equity": equity, "total_equity": total_equity,
+        "net_profit_to_date": profit,
+        "difference": totals["Asset"] - right,
+        "balanced": totals["Asset"] == right,
+    }
+
+
+def _lines_out(lines):
+    return [{"code": ln["code"], "name": ln["name"], "amount": _m(ln["amount"])} for ln in lines]
+
+
+def admin_only(fn):
+    """Financial reports: a valid admin token is required (same rule as the Accounting tab)."""
+
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        actor = get_current_user()
+        if actor is None:
+            return api_response(error="unauthorized", message="Authentication required."), 401
+        if actor.role != "admin":
+            return api_response(error="forbidden", message="Admin access required."), 403
+        g.current_user = actor
+        return fn(*args, **kwargs)
+
+    return wrapper
+
+
+def _account_rows(company_id, date_from=None, date_to=None):
+    """(code, name, type, debit, credit) for EVERY account of the company (0 when nothing was posted)."""
+    query = (
+        db.session.query(JournalLine.account_id, func.sum(JournalLine.debit), func.sum(JournalLine.credit))
+        .join(JournalEntry, JournalEntry.id == JournalLine.journal_entry_id)
+        .filter(JournalEntry.company_id == company_id, JournalEntry.status.in_(("Posted", "Reversed")))
+    )
+    if date_from:
+        query = query.filter(JournalEntry.entry_date >= date_from)
+    if date_to:
+        query = query.filter(JournalEntry.entry_date <= date_to)
+    sums = {aid: (_d(dr), _d(cr)) for aid, dr, cr in query.group_by(JournalLine.account_id)}
+    rows = []
+    for account in Account.query.filter(Account.company_id == company_id).order_by(Account.code).all():
+        debit, credit = sums.get(account.id, (Decimal("0"), Decimal("0")))
+        rows.append((account.code, account.name, account.type, debit, credit))
+    return rows
+
+
+def _fin_scope():
+    """(scope, date_from, date_to, error_response)."""
+    scope, problem = _load_scope()
+    if problem:
+        return None, None, None, problem
+    date_from, msg = parse_date(request.args.get("from"), "from")
+    if msg:
+        return None, None, None, (api_response(error="validation_error", message=msg), 400)
+    date_to, msg = parse_date(request.args.get("to"), "to")
+    if msg:
+        return None, None, None, (api_response(error="validation_error", message=msg), 400)
+    if date_from and date_to and date_from > date_to:
+        return None, None, None, (api_response(error="validation_error", message="'from' must not be after 'to'."), 400)
+    return scope, date_from, date_to, None
+
+
+@reports_bp.route("/profit-loss", methods=["GET"])
+@admin_only
+def profit_loss():
+    scope, date_from, date_to, problem = _fin_scope()
+    if problem:
+        return problem
+    try:
+        pl = build_profit_loss(_account_rows(scope["company_id"], date_from, date_to))
+    except SQLAlchemyError:
+        db.session.rollback()
+        return api_response(error="database_error", message="Could not build the Profit & Loss."), 500
+    return api_response(data={
+        "company_id": scope["company_id"], "company_name": scope["company_name"], "currency": scope["currency"],
+        "from": date_from.isoformat() if date_from else None, "to": date_to.isoformat() if date_to else None,
+        "revenue": _m(pl["revenue"]), "revenue_lines": _lines_out(pl["revenue_lines"]),
+        "cogs": _m(pl["cogs"]), "gross_profit": _m(pl["gross_profit"]),
+        "expenses": _lines_out(pl["expenses"]), "total_expenses": _m(pl["total_expenses"]),
+        "net_profit": _m(pl["net_profit"]),
+    })
+
+
+@reports_bp.route("/balance-sheet", methods=["GET"])
+@admin_only
+def balance_sheet():
+    scope, _date_from, date_to, problem = _fin_scope()     # 'from' is accepted but not used: a balance sheet is "as of"
+    if problem:
+        return problem
+    try:
+        bs = build_balance_sheet(_account_rows(scope["company_id"], None, date_to))
+    except SQLAlchemyError:
+        db.session.rollback()
+        return api_response(error="database_error", message="Could not build the Balance Sheet."), 500
+    return api_response(data={
+        "company_id": scope["company_id"], "company_name": scope["company_name"], "currency": scope["currency"],
+        "as_of": (date_to or date.today()).isoformat(),
+        "assets": _lines_out(bs["assets"]), "total_assets": _m(bs["total_assets"]),
+        "liabilities": _lines_out(bs["liabilities"]), "total_liabilities": _m(bs["total_liabilities"]),
+        "equity": _lines_out(bs["equity"]), "total_equity": _m(bs["total_equity"]),
+        "net_profit_to_date": _m(bs["net_profit_to_date"]),
+        "balanced": bs["balanced"], "difference": _m(bs["difference"]),
+    })

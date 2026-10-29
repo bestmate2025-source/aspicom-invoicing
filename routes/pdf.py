@@ -21,7 +21,7 @@ from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from extensions import db
-from models import ImportLog, Inventory, ParsedInvoice
+from models import Company, ImportLog, Inventory, ParsedInvoice
 from parsers.pdf_parser import parse_invoice
 from utils.logger import get_logger
 from utils.responses import api_response
@@ -91,10 +91,17 @@ def _decrement_inventory_from_line_items(line_items) -> None:
 
     Same matching rule as routes/invoices.py: case-insensitive product name,
     balance clamped at 0, a missing match silently skipped.
+
+    Wave 3A: stock is kept per company and this old import has no company, so it only
+    ever touches the FIRST company's stock.
     """
+    primary = db.session.query(Company.id).order_by(Company.id.asc()).first()
+    if primary is None:
+        return
     for item in line_items:
         match = Inventory.query.filter(
-            func.lower(Inventory.product) == item.product_name.lower()
+            Inventory.company_id == primary[0],
+            func.lower(Inventory.product) == item.product_name.lower(),
         ).first()
         if match is None:
             continue

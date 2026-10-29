@@ -43,6 +43,9 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from extensions import db
 from models import Account, Company, JournalEntry, JournalLine
+from utils.accounting_auto import (
+    AccountingError, opening_preview, post_opening_stock, undo_opening_stock,
+)
 from utils.auth import get_current_user
 from utils.responses import api_response
 
@@ -713,6 +716,69 @@ def reverse_journal(entry_id: int):
         "reversal": reversal.to_dict(include_lines=True),
         "original": original.to_dict(),
     }), 201
+
+
+# ---------------------------------------------------------------------
+# opening stock (Wave 3B): count the stock you already hold into the books, once per company
+# ---------------------------------------------------------------------
+def _opening_company(raw):
+    if isinstance(raw, str) and raw.isdigit():
+        raw = int(raw)
+    return _find_company(raw)
+
+
+@accounting_bp.route("/opening-stock", methods=["GET"])
+@admin_only
+def opening_stock_preview():
+    company, msg = _opening_company(request.args.get("company_id"))
+    if msg:
+        return _err(400, "bad_request", msg)
+    return api_response(data=opening_preview(company)), 200
+
+
+@accounting_bp.route("/opening-stock", methods=["POST"])
+@admin_only
+def opening_stock_post():
+    body, error = _json_object()
+    if error:
+        return error
+    company, msg = _opening_company(body.get("company_id"))
+    if msg:
+        return _err(400, "bad_request", msg)
+    entry_date = date.today()
+    if body.get("entry_date"):
+        entry_date, msg = parse_date(body["entry_date"])
+        if msg:
+            return _err(400, "bad_request", msg)
+    try:
+        entry = post_opening_stock(company, entry_date)
+    except AccountingError as exc:
+        db.session.rollback()
+        return _err(409, "accounting_error", str(exc))
+    failed = _commit()
+    if failed:
+        return failed
+    return api_response(data=opening_preview(company), message=f"Opening stock posted as {entry.entry_number}."), 201
+
+
+@accounting_bp.route("/opening-stock/undo", methods=["POST"])
+@admin_only
+def opening_stock_undo():
+    body, error = _json_object()
+    if error:
+        return error
+    company, msg = _opening_company(body.get("company_id"))
+    if msg:
+        return _err(400, "bad_request", msg)
+    try:
+        undo_opening_stock(company)
+    except AccountingError as exc:
+        db.session.rollback()
+        return _err(409, "accounting_error", str(exc))
+    failed = _commit()
+    if failed:
+        return failed
+    return api_response(data=opening_preview(company), message="Opening stock undone."), 200
 
 
 # ---------------------------------------------------------------------

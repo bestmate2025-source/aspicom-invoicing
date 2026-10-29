@@ -175,19 +175,26 @@ class InvoicePayment(db.Model):
 
 class Inventory(db.Model):
     __tablename__ = "inventory"
+    __table_args__ = (db.UniqueConstraint("company_id", "product", name="uq_inventory_company_product"),)
 
     id = db.Column(db.Integer, primary_key=True)
-    product = db.Column(db.String(255), nullable=False, unique=True)
+    # Wave 3A: every company has its own stock. A product name is unique PER COMPANY.
+    company_id = db.Column(db.Integer, db.ForeignKey("company.id", ondelete="RESTRICT"), nullable=False, index=True)
+    product = db.Column(db.String(255), nullable=False)
     brand = db.Column(db.String(255))
     price = db.Column(db.Numeric(12, 2), nullable=False, default=0)
     vat_percent = db.Column(db.Numeric(5, 2), nullable=False, default=5)
     par_level = db.Column(db.Numeric(10, 2), nullable=False, default=0)
     balance = db.Column(db.Numeric(10, 2), nullable=False, default=0, index=True)
+    # Wave 3B: what one unit costs us (average cost). Only people who may see costs get it in the API.
+    avg_cost = db.Column(db.Numeric(14, 4), nullable=False, default=0, server_default=db.text("0"))
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     def to_dict(self) -> dict:
         return {
             "id": self.id,
+            "company_id": self.company_id,
+            "avg_cost": _dec(self.avg_cost),
             "product": self.product,
             "brand": self.brand,
             "price": _dec(self.price),
@@ -214,6 +221,9 @@ class Company(db.Model):
     stamp_path = db.Column(db.String(500))
     # 1 company = 1 currency. Every invoice this company issues uses it (ERP Phase 4.5).
     currency = db.Column(db.String(3), nullable=False, default="USD")
+    # Wave 2B: when True, this company's invoices post to its books automatically.
+    # Switched on only by scripts/accounting_backfill.py (after the old invoices are posted).
+    accounting_enabled = db.Column(db.Boolean, nullable=False, default=False, server_default=db.text("0"))
 
     def to_dict(self) -> dict:
         return {
@@ -458,6 +468,8 @@ class PurchaseOrder(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id", ondelete="RESTRICT"), nullable=False, index=True)
+    # Wave 3A: the company that is buying (its stock grows when goods are received)
+    company_id = db.Column(db.Integer, db.ForeignKey("company.id", ondelete="RESTRICT"), nullable=False, index=True)
     po_number = db.Column(db.String(50), nullable=False, unique=True)
     status = db.Column(
         db.Enum(*PO_STATUSES, name="po_status"),
@@ -486,6 +498,7 @@ class PurchaseOrder(db.Model):
             "id": self.id,
             "supplier_id": self.supplier_id,
             "supplier_name": self.supplier.name if self.supplier else None,
+            "company_id": self.company_id,
             "po_number": self.po_number,
             "status": self.status,
             "order_date": self.order_date.isoformat() if self.order_date else None,
@@ -635,19 +648,30 @@ class JournalEntry(db.Model):
 
     __tablename__ = "journal_entries"
 
-    # the same invoice / payment can never post twice for the same company's books
+    # Only ONE live journal per invoice / payment per company's books. source_active is 1 on the
+    # live journal and NULL on reversed / reversal journals (MySQL allows many NULLs in a unique
+    # index), so an edited invoice can be reversed and posted again without breaking the rule.
     __table_args__ = (
-        db.UniqueConstraint("source_type", "source_id", "company_id", name="uq_journal_source"),
+        db.UniqueConstraint("source_type", "source_id", "company_id", "source_active", name="uq_journal_live_source"),
     )
 
     id = db.Column(db.Integer, primary_key=True)
     company_id = db.Column(db.Integer, db.ForeignKey("company.id", ondelete="RESTRICT"), nullable=False, index=True)
     source_type = db.Column(
-        db.Enum("manual", "invoice", "payment", "invoice_reversal", "payment_reversal", name="journal_source_type"),
+        db.Enum(
+            "manual", "invoice", "payment", "invoice_reversal", "payment_reversal",
+            "opening_stock", "opening_stock_reversal",
+            "goods_received", "goods_received_reversal",
+            "cogs", "cogs_reversal",
+            "stock_adjustment", "stock_adjustment_reversal",
+            name="journal_source_type",
+        ),
         nullable=False, default="manual", index=True,
     )
     source_id = db.Column(db.Integer, nullable=True)       # id of the invoice / payment it came from
     source_ref = db.Column(db.String(100), nullable=True)  # invoice number or payment reference
+    source_active = db.Column(db.SmallInteger, nullable=True)  # 1 = live journal of that source, NULL = history
+    cost_signature = db.Column(db.String(64), nullable=True)   # Wave 3D: which products/quantities a cost-of-sales entry was built from
     entry_number = db.Column(db.String(50), nullable=False, unique=True)
     entry_date = db.Column(db.Date, nullable=False, index=True)
     reference = db.Column(db.String(100))

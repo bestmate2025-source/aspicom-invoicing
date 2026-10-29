@@ -12,6 +12,8 @@ Registered in app.py with url_prefix="/api/purchase-orders".
 Who can do what: the app-wide before_request check in app.py already limits
 POST / PUT / DELETE to admins, so the read-only 'user' role can only GET.
 
+Wave 3A: a PO belongs to one company; /receive adds stock to THAT company's products.
+
 Stock rule: only /receive changes stock, and only through log_movement()
 (reason 'stock_in'), exactly like every other stock change in the app.
 
@@ -31,12 +33,14 @@ from sqlalchemy.orm import joinedload
 
 from extensions import db
 from models import (
+    Company,
     GoodsReceivedNote,
     GoodsReceivedNoteItem,
     PurchaseOrder,
     PurchaseOrderItem,
     Supplier,
 )
+from utils.accounting_auto import AccountingError, new_average_cost, post_goods_received
 from utils.responses import api_response
 from utils.stock_movements import find_inventory_by_name, get_current_user_id, log_movement
 
@@ -55,7 +59,7 @@ PO_PREFIX = "PO-"
 GRN_PREFIX = "GRN-"
 NUMBER_SEPARATOR = ":"      # PO-2026-10-19:0001
 
-PO_FIELDS = {"supplier_id", "order_date", "expected_date", "notes", "status", "items"}
+PO_FIELDS = {"supplier_id", "company_id", "order_date", "expected_date", "notes", "status", "items"}
 ITEM_FIELDS = {"product_name", "brand", "unit_price", "qty_ordered", "vat_percent"}
 SAVE_STATUSES = ("Draft", "Sent")            # what a person may set when creating / editing
 RECEIVABLE_STATUSES = ("Draft", "Sent", "Partial")
@@ -190,6 +194,16 @@ def clean_po(body, creating: bool) -> dict:
             raise _Invalid("invalid_type", "'supplier_id' must be a whole number.")
         out["supplier_id"] = int(str(raw).strip())
 
+    if "company_id" in body or creating:
+        raw = body.get("company_id")
+        if raw in (None, ""):
+            raw = None  # the route fills in the first company when the screen did not send one
+        elif isinstance(raw, bool) or not isinstance(raw, (int, str)) or not str(raw).strip().isdigit():
+            raise _Invalid("invalid_type", "'company_id' must be a whole number.")
+        else:
+            raw = int(str(raw).strip())
+        out["company_id"] = raw
+
     if "order_date" in body:
         if body["order_date"] in (None, ""):
             if not creating:
@@ -316,6 +330,18 @@ def _db_error(exc: Exception):
     return api_response(error="db_error", message=str(exc)), 500
 
 
+def _resolve_company(company_id):
+    """(company_id, error_response). None -> the first company. Unknown company -> error."""
+    if company_id is None:
+        row = db.session.query(Company.id).order_by(Company.id.asc()).first()
+        if row is None:
+            return None, (api_response(error="invalid_value", message="There is no company yet."), 400)
+        return row[0], None
+    if Company.query.get(company_id) is None:
+        return None, (api_response(error="invalid_value", message=f"Company {company_id} does not exist."), 400)
+    return company_id, None
+
+
 def _check_supplier(supplier_id: int, current_supplier_id: int | None = None):
     """Returns an error response tuple, or None when the supplier is fine."""
     supplier = Supplier.query.get(supplier_id)
@@ -375,11 +401,15 @@ def create_purchase_order():
     problem = _check_supplier(cleaned["supplier_id"])
     if problem:
         return problem
+    company_id, problem = _resolve_company(cleaned.get("company_id"))
+    if problem:
+        return problem
 
     po = None
     for _attempt in range(5):  # a clash on the number (two people at once) just picks the next number
         candidate = PurchaseOrder(
             supplier_id=cleaned["supplier_id"],
+            company_id=company_id,
             po_number=_next_number(PO_PREFIX, PurchaseOrder.po_number, cleaned["order_date"]),
             status=cleaned["status"],
             order_date=cleaned["order_date"],
@@ -434,7 +464,13 @@ def update_purchase_order(po_id: int):
         if problem:
             return problem
 
-    for key in ("supplier_id", "order_date", "expected_date", "notes", "status"):
+    if "company_id" in cleaned:
+        company_id, problem = _resolve_company(cleaned["company_id"] if cleaned["company_id"] is not None else po.company_id)
+        if problem:
+            return problem
+        cleaned["company_id"] = company_id
+
+    for key in ("supplier_id", "company_id", "order_date", "expected_date", "notes", "status"):
         if key in cleaned:
             setattr(po, key, cleaned[key])
     if "items" in cleaned:
@@ -508,7 +544,7 @@ def receive_purchase_order(po_id: int):
     missing: list[str] = []
     for item_id, _qty in lines:
         name = by_id[item_id].product_name
-        inv = find_inventory_by_name(name)
+        inv = find_inventory_by_name(name, po.company_id)
         if inv is None:
             if name not in missing:
                 missing.append(name)
@@ -517,8 +553,8 @@ def receive_purchase_order(po_id: int):
     if missing:
         return api_response(
             error="invalid_value",
-            message="These products are not in Inventory yet: " + ", ".join(missing)
-                    + ". Add them in Inventory first, then receive again.",
+            message="These products are not in this company's Inventory yet: " + ", ".join(missing)
+                    + ". Add them in Inventory (for the same company as this order) first, then receive again.",
         ), 400
 
     # Create the GRN (retry with the next number if two people clash on the same number).
@@ -544,9 +580,13 @@ def receive_purchase_order(po_id: int):
         return api_response(error="db_error", message="Could not create the GRN. Please try again."), 500
 
     try:
+        books_lines = []
         for item_id, qty in lines:
             item = by_id[item_id]
             inv = inventory_for[item_id]
+            # Wave 3C: the product's average cost moves with what we paid (price WITHOUT VAT).
+            inv.avg_cost = new_average_cost(inv.balance, inv.avg_cost, qty, item.unit_price or ZERO)
+            books_lines.append((qty, item.unit_price or ZERO, item.vat_percent or ZERO))
             item.qty_received = (item.qty_received or ZERO) + qty
             db.session.add(GoodsReceivedNoteItem(
                 grn_id=grn.id, po_item_id=item.id, product_name=item.product_name, qty_received=qty,
@@ -564,7 +604,12 @@ def receive_purchase_order(po_id: int):
         po.status = status_after_receipt(
             [{"qty_ordered": it.qty_ordered or ZERO, "qty_received": it.qty_received or ZERO} for it in po.items]
         )
+        # Wave 3C: Dr Inventory + Dr VAT Receivable, Cr Accounts Payable (only if the company's accounting is on).
+        post_goods_received(Company.query.get(po.company_id), grn.id, grn.grn_number, po.po_number, received_date, books_lines)
         db.session.commit()
+    except AccountingError as exc:
+        db.session.rollback()
+        return api_response(error="accounting_error", message=str(exc)), 409
     except ValueError as exc:  # log_movement refused something
         db.session.rollback()
         return api_response(error="invalid_value", message=str(exc)), 400

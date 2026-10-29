@@ -28,8 +28,10 @@
   }
 }
 *{box-sizing:border-box;}
-html{height:100%;}
-body{margin:0; height:100%; background:var(--bg); color:var(--ink); font-family:'Inter',sans-serif; display:flex; min-height:100vh;}
+/* AUTO ZOOM (3G): the whole app is drawn at 85% by default (changeable in the sidebar) */
+:root{--ui-zoom:0.85;}
+html{height:calc(100vh / var(--ui-zoom)); zoom:var(--ui-zoom);}
+body{margin:0; height:100%; background:var(--bg); color:var(--ink); font-family:'Inter',sans-serif; display:flex; min-height:calc(100vh / var(--ui-zoom));}
 .rail{width:190px; flex:0 0 190px; border-right:1px solid var(--line); padding:28px 16px; display:flex; flex-direction:column; gap:32px; background:var(--surface);}
 .brand{font-family:'Fraunces',serif; font-size:22px; font-weight:600; letter-spacing:-0.02em;}
 .brand span{color:var(--pine);}
@@ -37,7 +39,7 @@ nav{display:flex; flex-direction:column; gap:2px;}
 .nav-item{padding:9px 10px; border-radius:8px; font-size:14px; font-weight:500; color:var(--sub); cursor:pointer; border:none; background:none; text-align:left; font-family:inherit; width:100%; transition:background 0.15s, color 0.15s;}
 .nav-item:hover{background:var(--grey-soft); color:var(--ink);}
 .nav-item.active{background:var(--pine-soft); color:var(--pine);}
-main{flex:1; padding:32px 48px 60px; overflow-y:auto; overflow-x:hidden; height:100vh; box-sizing:border-box; max-width:1400px; margin:0 auto;}
+main{flex:1; padding:32px 48px 60px; overflow-y:auto; overflow-x:hidden; height:calc(100vh / var(--ui-zoom)); box-sizing:border-box; max-width:1400px; margin:0 auto;}
 @media (max-width:1200px){ main{padding:24px 24px 60px !important;} }
 h1{font-family:'Fraunces',serif; font-size:28px; font-weight:500; margin:0 0 4px;}
 .lede{color:var(--sub); font-size:14px; margin:0 0 28px;}
@@ -84,7 +86,7 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
 .overlay{position:fixed; inset:0; background:rgba(20,20,18,0.5); display:none; align-items:flex-start; justify-content:center; z-index:10; padding:24px 16px; overflow-y:auto; animation:fadeIn 0.15s ease-out;}
 .overlay.show{display:flex;}
 @keyframes fadeIn{from{opacity:0;} to{opacity:1;}}
-.modal{background:var(--surface); border-radius:16px; padding:26px; width:100%; max-width:560px; margin:auto; box-shadow:var(--shadow-lg); animation:slideUp 0.2s ease-out; max-height:calc(100vh - 48px); overflow-y:auto;}
+.modal{background:var(--surface); border-radius:16px; padding:26px; width:100%; max-width:560px; margin:auto; box-shadow:var(--shadow-lg); animation:slideUp 0.2s ease-out; max-height:calc(100vh / var(--ui-zoom) - 48px); overflow-y:auto;}
 @keyframes slideUp{from{opacity:0; transform:translateY(12px);} to{opacity:1; transform:translateY(0);}}
 .modal h2{font-family:'Fraunces',serif; font-weight:500; font-size:20px; margin:0 0 18px;}
 .field{margin-bottom:14px;}
@@ -156,6 +158,7 @@ td.bar::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px
 .spinner{display:inline-block; width:14px; height:14px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 0.8s linear infinite; vertical-align:middle;}
 @keyframes spin{to{transform:rotate(360deg);}}
 @media print{
+  :root{--ui-zoom:1 !important;}
   body *{visibility:hidden;}
   #print-overlay, #print-overlay *{visibility:visible;}
   #print-overlay{position:absolute; inset:0; background:#fff; padding:0;}
@@ -242,6 +245,19 @@ tbody tr:hover{background:var(--pine-soft);}
 .rpt-bad{background:rgba(234,67,53,0.12); color:var(--danger);}
 .rpt-clickable{cursor:pointer;}
 .rpt-selected{outline:2px solid var(--pine);}
+.fin-wrap{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:6px 18px 14px; box-shadow:var(--shadow-sm); margin-bottom:16px;}
+.fin-wrap h3{font-family:'Fraunces',serif; font-weight:500; font-size:16px; margin:14px 0 6px;}
+.fin-table{width:100%; border-collapse:collapse; font-size:14px;}
+.fin-table td{padding:7px 4px; border-bottom:1px solid var(--line);}
+.fin-table td.amt{text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums;}
+.fin-table tr.sub td{font-weight:700; background:var(--grey-soft);}
+.fin-table tr.big td{font-weight:700; font-size:16px; border-top:2px solid var(--line);}
+.fin-table tr.ind td:first-child{padding-left:22px; color:var(--sub);}
+.fin-pos{color:var(--pine);}
+.fin-neg{color:var(--danger);}
+.fin-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start;}
+@media (max-width:760px){.fin-grid{grid-template-columns:1fr;}}
+.fin-badge{display:inline-block; padding:8px 22px; border-radius:24px; font-size:18px; font-weight:700; margin:0 0 14px;}
 /* R8 - sidebar sections */
 .rail{overflow-y:auto;}
 .nav-section{font-size:11px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--grey); padding:16px 10px 4px;}
@@ -339,7 +355,7 @@ body:not([data-can~="admin"]) #new-company-btn,
 body:not([data-can~="admin"]) #company-form button[type="submit"],
 body:not([data-can~="admin"]) #new-user-btn {display:none !important;}
 /* R15 - accounting (admin only) */
-body:not([data-can~="admin"]) #nav-accounting {display:none !important;}
+body:not([data-can~="admin"]) #nav-accounting, body:not([data-can~="admin"]) #nav-accounting-head {display:none !important;}
 .acc-lines{margin-top:6px;}
 .acc-lines td{padding:6px 8px; vertical-align:middle;}
 .acc-lines input, .acc-lines select{padding:7px 9px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink); font-family:inherit; font-size:13px;}
@@ -349,6 +365,77 @@ body:not([data-can~="admin"]) #nav-accounting {display:none !important;}
 .acc-filter{display:flex; align-items:center; gap:6px; font-size:13px; font-weight:600; color:var(--sub);}
 .acc-filter select, .acc-filter input{padding:6px 10px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink); font-family:inherit; font-size:13px;}
 </style>
+<script>
+/* AUTO ZOOM + sidebar group (3G): runs before the page is drawn */
+(function () {
+  try {
+    var z = parseFloat(localStorage.getItem('uiZoom'));
+    if (z >= 0.6 && z <= 1.2) document.documentElement.style.setProperty('--ui-zoom', String(z));
+    if (!localStorage.getItem('navAccOpened3g')) {
+      var raw = localStorage.getItem('navOpenGroups');
+      if (raw) { var o = JSON.parse(raw); if (Array.isArray(o) && o.indexOf('ACCOUNTING') < 0) { o.push('ACCOUNTING'); localStorage.setItem('navOpenGroups', JSON.stringify(o)); } }
+      localStorage.setItem('navAccOpened3g', '1');
+    }
+  } catch (e) {}
+})();
+</script>
+<style id="sidebar-lime">
+/* SIDEBAR LIME (3H) */
+:root .rail{background:linear-gradient(180deg,#C6F36B 0%,#A3E635 100%) !important; border-right:1px solid #84CC16 !important;}
+:root .rail .brand{color:#1A2E05 !important;}
+:root .rail .brand span{color:#3F6212 !important;}
+:root .rail nav .nav-item{color:#1A2E05 !important;}
+:root .rail nav .nav-item.ng::before{background:#3F6212 !important; opacity:0.8;}
+:root .rail nav .nav-section, :root .rail nav .nav-section.ng{color:#3F6212 !important;}
+:root .rail nav .nav-section.ng:not(.nav-fixed):hover{color:#1A2E05 !important; background:rgba(26,46,5,0.10) !important;}
+:root .rail nav .nav-section.nav-has-active{color:#1A2E05 !important;}
+:root .rail nav .nav-item:hover, :root .rail nav .nav-item.ng:hover{background:rgba(26,46,5,0.12) !important; color:#1A2E05 !important;}
+:root .rail nav .nav-item.active, :root .rail nav .nav-item.active:hover, :root .rail nav .nav-item.ng.active, :root .rail nav .nav-item.ng.active:hover{background:#1A2E05 !important; color:#D9F99D !important; box-shadow:none !important;}
+:root .rail nav .nav-item.ng.active::before{background:#D9F99D !important; opacity:1;}
+:root .rail #sidebar-user{border-top:1px solid rgba(26,46,5,0.25) !important;}
+:root .rail #sidebar-user-name{color:#1A2E05 !important;}
+:root .rail #sidebar-user-role, :root .rail #sidebar-user label{color:#3F6212 !important;}
+:root .rail #ui-zoom-select{background:#F7FEE7; color:#1A2E05; border:1px solid #65A30D; border-radius:6px;}
+</style>
+<style id="rail-toggle-3i">
+/* SIDEBAR TOGGLE + VIEW (3I) */
+body.rail-hidden > .rail{display:none !important;}
+#rail-toggle{order:-1; background:var(--surface); border:1px solid var(--line); border-radius:12px; width:40px; height:38px; font-size:20px; line-height:1; cursor:pointer; color:var(--ink); display:flex; align-items:center; justify-content:center; margin-right:4px;}
+#rail-toggle:hover{background:var(--pine-soft);}
+#top-view{order:2; display:flex; align-items:center; gap:6px; font-size:12px; color:var(--sub); background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:6px 10px;}
+#top-view select{font-size:12px; padding:2px 4px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--ink); font-family:inherit;}
+@media print{#rail-toggle,#top-view{display:none !important;}}
+</style>
+<script>
+(function () {
+  function setup() {
+    var bar = document.getElementById('low-stock-bar');
+    if (!bar || document.getElementById('rail-toggle')) return;
+    var t = document.createElement('button');
+    t.id = 'rail-toggle'; t.type = 'button'; t.title = 'Hide / show menu'; t.setAttribute('aria-label', 'Hide or show menu');
+    t.innerHTML = '&#9776;';
+    bar.insertBefore(t, bar.firstChild);
+    function apply(h) { document.body.classList.toggle('rail-hidden', h); try { localStorage.setItem('railHidden', h ? '1' : '0'); } catch (e) {} }
+    try { if (localStorage.getItem('railHidden') === '1') document.body.classList.add('rail-hidden'); } catch (e) {}
+    t.addEventListener('click', function () { apply(!document.body.classList.contains('rail-hidden')); });
+    var side = document.getElementById('ui-zoom-select');
+    var w = document.createElement('label');
+    w.id = 'top-view'; w.innerHTML = 'View <select id="ui-zoom-top"><option value="0.7">70%</option><option value="0.75">75%</option><option value="0.8">80%</option><option value="0.85">85%</option><option value="0.9">90%</option><option value="1">100%</option></select>';
+    var u = document.getElementById('topbar-user');
+    bar.insertBefore(w, u || null);
+    var top = document.getElementById('ui-zoom-top');
+    function cur() { var c = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ui-zoom')) || 0.85; var s = String(c); if (!top.querySelector('option[value="' + s + '"]')) s = '0.85'; return s; }
+    top.value = cur(); if (side) side.value = top.value;
+    top.addEventListener('change', function () {
+      document.documentElement.style.setProperty('--ui-zoom', top.value);
+      try { localStorage.setItem('uiZoom', top.value); } catch (e) {}
+      if (side) side.value = top.value;
+    });
+    if (side) side.addEventListener('change', function () { top.value = side.value; });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setup); else setup();
+})();
+</script>
 </head>
 <body>
 
@@ -374,6 +461,7 @@ body:not([data-can~="admin"]) #nav-accounting {display:none !important;}
     <div class="nav-section">REPORTS</div>
     <button class="nav-item" data-view="vat-report">VAT Report</button>
     <button class="nav-item" data-view="reports">Business Reports</button>
+    <div class="nav-section" id="nav-accounting-head">ACCOUNTING</div>
     <button class="nav-item" data-view="accounting" id="nav-accounting">Accounting</button>
     <div class="nav-section">SETTINGS</div>
     <button class="nav-item" data-view="company">Company Profile</button>
@@ -383,6 +471,8 @@ body:not([data-can~="admin"]) #nav-accounting {display:none !important;}
     <div id="sidebar-user-name" style="font-size:13px; font-weight:600; margin-bottom:2px;"></div>
     <div id="sidebar-user-role" style="font-size:11px; color:var(--sub); margin-bottom:8px;"></div>
     <div id="view-only-badge" style="display:none; font-size:11px; font-weight:600; color:var(--amber); background:var(--amber-soft); padding:3px 8px; border-radius:10px; margin-bottom:8px; text-align:center;">View-only access</div>
+    <label style="display:flex; align-items:center; justify-content:space-between; gap:6px; font-size:11px; color:var(--sub); margin-bottom:8px;">View size
+      <select id="ui-zoom-select" style="font-size:11px; padding:2px 4px;"><option value="0.7">70%</option><option value="0.75">75%</option><option value="0.8">80%</option><option value="0.85">85%</option><option value="0.9">90%</option><option value="1">100%</option></select></label>
     <button class="btn ghost sm" id="logout-btn" style="width:100%;">Sign out</button>
   </div>
 </div>
@@ -410,6 +500,10 @@ body:not([data-can~="admin"]) #nav-accounting {display:none !important;}
       <div class="stat stat-c-pine"><div class="stat-label">Paid this month</div><div class="stat-value pine" id="stat-paid">—</div></div>
       <div class="stat stat-c-blue"><div class="stat-label">Total Collected</div><div class="stat-value pine" id="stat-collected">—</div></div>
       <div class="stat stat-c-amber-dark"><div class="stat-label">Total Outstanding</div><div class="stat-value amber" id="stat-outstanding-total">—</div></div>
+    </div>
+    <div class="stats" id="dash-fin-stats">
+      <div class="stat stat-c-pine"><div class="stat-label">Today's sales (incl. VAT)</div><div class="stat-value pine" id="stat-today-sales">—</div><div class="stat-label" id="stat-today-count" style="margin-top:4px;"></div></div>
+      <div class="stat stat-c-blue" id="stat-profit-card" style="display:none;"><div class="stat-label">This month's net profit <select id="dash-company" style="margin-left:6px; font-size:12px; max-width:150px;"></select></div><div class="stat-value" id="stat-month-profit">—</div><div class="stat-label" id="stat-month-sub" style="margin-top:4px;"></div></div>
     </div>
     <div id="inventory-chart-section" style="background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:20px; margin-bottom:24px; box-shadow:var(--shadow-sm);">
       <div class="section-title" style="margin-top:0;">Low Stock</div>
@@ -484,6 +578,10 @@ body:not([data-can~="admin"]) #nav-accounting {display:none !important;}
       <button type="button" class="report-tab active" data-report="inventory-valuation">Inventory Valuation</button>
       <button type="button" class="report-tab" data-report="stock-aging">Stock Aging</button>
       <button type="button" class="report-tab" data-report="sales-summary">Sales Summary</button>
+      <!-- FINANCIAL REPORTS (3F): moved to the Accounting page - ACCOUNTING TABS (3G) -->
+    </div>
+    <div class="toolbar" id="report-company-bar" style="justify-content:flex-start; gap:8px;">
+      <label class="acc-filter">Company <select id="rpt-company"></select></label>
     </div>
     <div class="toolbar rpt-filters" id="report-filters" style="display:none; justify-content:flex-start; flex-wrap:wrap; gap:8px;">
       <label>From <input type="date" id="rpt-from"></label>
@@ -504,6 +602,8 @@ body:not([data-can~="admin"]) #nav-accounting {display:none !important;}
       <button type="button" class="report-tab active" data-acc-tab="accounts">Chart of Accounts</button>
       <button type="button" class="report-tab" data-acc-tab="journals">Journal Entries</button>
       <button type="button" class="report-tab" data-acc-tab="trial">Trial Balance</button>
+      <button type="button" class="report-tab" data-acc-tab="pl">Profit &amp; Loss</button>
+      <button type="button" class="report-tab" data-acc-tab="bs">Balance Sheet</button>
     </div>
 
     <div id="acc-pane-accounts">
@@ -543,6 +643,20 @@ body:not([data-can~="admin"]) #nav-accounting {display:none !important;}
         <button type="button" class="btn ghost sm" id="acc-tb-clear">All dates</button>
       </div>
       <div id="acc-tb-content"><div class="empty">Choose a company.</div></div>
+    </div>
+
+    <div id="acc-pane-fin" style="display:none;">
+      <div class="toolbar rpt-filters" style="flex-wrap:wrap; gap:8px; margin-bottom:16px; justify-content:flex-start;">
+        <label class="acc-filter">Company <select id="fin-company"></select></label>
+        <label id="fin-from-wrap">From <input type="date" id="fin-from"></label>
+        <label>To <input type="date" id="fin-to"></label>
+        <button type="button" class="btn sm" id="fin-apply">Apply</button>
+        <button type="button" class="btn ghost sm" data-fin-quick="this-month">This Month</button>
+        <button type="button" class="btn ghost sm" data-fin-quick="last-month">Last Month</button>
+        <button type="button" class="btn ghost sm" data-fin-quick="this-year">This Year</button>
+        <button type="button" class="btn ghost sm" data-fin-quick="all">All time</button>
+      </div>
+      <div id="fin-body"><div class="empty">Loading...</div></div>
     </div>
   </div>
   <div id="view-clients" style="display:none;">
@@ -687,10 +801,12 @@ body:not([data-can~="admin"]) #nav-accounting {display:none !important;}
   <div id="view-inventory" style="display:none;">
     <h1>Inventory</h1>
     <p class="lede">Stock on hand — line items on an invoice can pull straight from here.</p>
-    <div class="toolbar" style="justify-content:flex-end;">
-      <button class="btn" id="new-inv-item-btn">Add product</button>
+    <div class="toolbar" style="justify-content:space-between; flex-wrap:wrap; gap:8px;">
+      <label class="acc-filter">Company <select id="inv-company-filter"></select></label>
+      <span><button class="btn ghost" id="opening-stock-btn" style="display:none;">Opening stock</button> <button class="btn" id="new-inv-item-btn">Add product</button></span>
     </div>
-    <table><thead><tr><th>Product</th><th>Par level</th><th>Balance</th><th>Status</th></tr></thead>
+    <!-- AVERAGE COST (3B) -->
+    <table><thead><tr><th>Product</th><th>Company</th><th>Par level</th><th>Balance</th><th id="inv-cost-th" style="display:none;">Avg cost</th><th>Status</th></tr></thead>
       <tbody id="inventory-rows"></tbody>
     </table>
   </div>
@@ -1048,6 +1164,7 @@ body:not([data-can~="admin"]) #nav-accounting {display:none !important;}
     <form id="po-form" autocomplete="off">
       <div class="grid2">
         <div class="field"><label>Supplier *</label><select id="po-supplier"></select></div>
+        <div class="field"><label>Company (receives the stock) *</label><select id="po-company"></select></div>
         <div class="field"><label>Status</label><select id="po-status"><option value="Draft">Draft</option><option value="Sent">Sent</option></select></div>
         <div class="field"><label>Order date *</label><input type="date" id="po-order-date"></div>
         <div class="field"><label>Expected date</label><input type="date" id="po-expected-date"></div>
@@ -1117,13 +1234,32 @@ body:not([data-can~="admin"]) #nav-accounting {display:none !important;}
 
 <datalist id="inventory-list"></datalist>
 
+<div class="overlay" id="os-overlay">
+  <div class="modal" style="max-width:520px;">
+    <h2>Opening stock</h2>
+    <p class="lede" style="margin-top:0;">Counts the stock you already have into the books, once per company: Inventory goes up, Retained Earnings goes up by the same amount. Each product is counted at its balance x its average cost.</p>
+    <div class="field"><label>Company</label><select id="os-company"></select></div>
+    <div id="os-body" style="font-size:14px; line-height:1.6; margin:10px 0;"></div>
+    <div class="field" id="os-date-field"><label>Date of the entry</label><input type="date" id="os-date"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn ghost" id="os-close">Close</button>
+      <div class="right">
+        <button type="button" class="btn ghost" id="os-undo" style="display:none; color:var(--danger); border-color:var(--danger);">Undo opening stock</button>
+        <button type="button" class="btn" id="os-post">Post opening stock</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="inv-item-overlay">
   <div class="modal" style="max-width:380px;">
     <h2 id="inv-item-title">Add product</h2>
     <form id="inv-item-form">
+      <div class="field"><label>Company</label><select id="ii-company"></select></div>
       <div class="field"><label>Product name</label><input type="text" id="ii-name" required></div>
       <div class="field"><label>Default brand</label><input type="text" id="ii-brand"></div>
       <div class="field"><label>Default unit price</label><input type="number" step="0.01" min="0" id="ii-price"></div>
+      <div class="field" id="ii-cost-field" style="display:none;"><label>Average cost (what one unit costs you)</label><input type="number" step="0.0001" min="0" id="ii-cost"></div>
       <div class="grid2">
         <div class="field"><label>Par level</label><input type="number" step="1" min="0" id="ii-inventory" value="0"></div>
         <div class="field"><label>Current balance</label><div id="ii-balance-note" style="padding:9px 0; font-size:14px; color:var(--sub);">0</div></div>
@@ -1531,6 +1667,58 @@ function renderStats() {
   $('#stat-paid').textContent = fmt(paid);
   $('#stat-collected').textContent = fmt(collected);
   $('#stat-outstanding-total').textContent = fmt(totalOutstanding);
+  renderTodaySales();
+}
+
+// Today's sales: real invoices (not quotations/drafts) that are Sent / Paid / Overdue and were issued today. Each currency on its own.
+function renderTodaySales() {
+  const el = $('#stat-today-sales');
+  if (!el) return;
+  const today = rptYMD(new Date());
+  const sums = {}; let n = 0;
+  invoices.forEach(inv => {
+    if (inv.documentType !== 'invoice' || ['Sent', 'Paid', 'Overdue'].indexOf(inv.status) < 0) return;
+    if (String(inv.issued || '').slice(0, 10) !== today) return;
+    const cur = inv.currency || 'USD';
+    sums[cur] = (sums[cur] || 0) + (Number(inv.total) || 0);
+    n++;
+  });
+  const keys = Object.keys(sums);
+  el.textContent = keys.length ? keys.map(c => fmt(sums[c], c)).join(' + ') : fmt(0);
+  $('#stat-today-count').textContent = n + ' invoice' + (n === 1 ? '' : 's');
+}
+
+// This month's net profit comes from the books (Profit & Loss), one company at a time. Admin only.
+let dashProfitSeq = 0;
+let dashProfitCompany = null;
+async function loadDashProfit() {
+  const card = $('#stat-profit-card');
+  if (!card) return;
+  if (!isTrueAdmin()) { card.style.display = 'none'; return; }
+  card.style.display = '';
+  const sel = $('#dash-company');
+  if (!companies.length) { loadCompanies().then(loadDashProfit).catch(() => {}); return; }
+  if (!dashProfitCompany || !companies.some(c => c.id === dashProfitCompany)) dashProfitCompany = companies[0].id;
+  fillSelectCompanies(sel, dashProfitCompany, false);
+  if (!sel.dataset.bound) {
+    sel.dataset.bound = '1';
+    sel.addEventListener('change', () => { dashProfitCompany = parseInt(sel.value, 10) || null; loadDashProfit(); });
+  }
+  const seq = ++dashProfitSeq;
+  const now = new Date();
+  const q = '?company_id=' + dashProfitCompany + '&from=' + rptYMD(new Date(now.getFullYear(), now.getMonth(), 1)) + '&to=' + rptYMD(now);
+  const val = $('#stat-month-profit');
+  try {
+    const d = await api('/api/reports/profit-loss' + q);
+    if (seq !== dashProfitSeq) return;
+    val.textContent = fmt(d.net_profit, d.currency);
+    val.className = 'stat-value ' + finCls(d.net_profit);
+    $('#stat-month-sub').textContent = now.toLocaleString(undefined, { month: 'long', year: 'numeric' }) + ' (from the books)';
+  } catch (err) {
+    if (seq !== dashProfitSeq) return;
+    val.textContent = '—'; val.className = 'stat-value';
+    $('#stat-month-sub').textContent = 'Could not load';
+  }
 }
 
 function invoiceTotals(inv) {
@@ -1539,6 +1727,7 @@ function invoiceTotals(inv) {
 
 function renderDashboard() {
   renderStats();
+  loadDashProfit();
   const rows = [...invoices].sort((a, b) => new Date(b.issued || 0) - new Date(a.issued || 0)).slice(0, 6);
   $('#dash-rows').innerHTML = rows.length ? rows.map(inv => {
     const st = displayStatus(inv);
@@ -1691,17 +1880,57 @@ function populateCompanySelect(inv) {
   $('#f-company').disabled = !!inv;
   // currency selector is set up here too, so both modals get it without extra wiring
   applyCompanyCurrency(inv);
+  setProductListCompany($('#f-company').value);
+}
+
+// ==========================================================
+// STOCK PER COMPANY (3A): every company has its own stock
+// ==========================================================
+function coName(id) {
+  const c = (typeof companies !== 'undefined' ? companies : []).find(x => x.id === id);
+  return c ? c.name : ('Company #' + id);
+}
+function fillSelectCompanies(sel, wantId, locked) {
+  let list = (typeof companies !== 'undefined' && companies.length) ? companies.slice() : [{ id: 1, name: (company && company.name) || 'Company 1' }];
+  const want = wantId || list[0].id;
+  if (!list.some(c => c.id === want)) list.push({ id: want, name: 'Company #' + want });
+  sel.innerHTML = list.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  sel.value = String(want);
+  sel.disabled = !!locked;
+}
+let productListCompany = null;
+function refreshProductList() {
+  const list = productListCompany ? inventory.filter(it => it.companyId === productListCompany) : inventory;
+  $('#inventory-list').innerHTML = list.map(it => `<option value="${it.product}">`).join('');
+}
+function setProductListCompany(id) {
+  productListCompany = id ? parseInt(id, 10) : null;
+  refreshProductList();
+}
+function fillInvCompanyFilter() {
+  const sel = $('#inv-company-filter');
+  if (!sel) return;
+  const keep = sel.value;
+  const list = (typeof companies !== 'undefined' ? companies : []);
+  sel.innerHTML = '<option value="">All companies</option>' + list.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  if (Array.prototype.some.call(sel.options, o => o.value === keep)) sel.value = keep;
 }
 
 function renderInventory() {
-  $('#inventory-rows').innerHTML = inventory.length ? inventory.map(it => {
+  fillInvCompanyFilter();
+  const f = $('#inv-company-filter') ? $('#inv-company-filter').value : '';
+  const shown = f ? inventory.filter(it => String(it.companyId) === f) : inventory;
+  const showCost = isTrueAdmin();
+  $('#inv-cost-th').style.display = showCost ? '' : 'none';
+  $('#opening-stock-btn').style.display = showCost ? '' : 'none';
+  $('#inventory-rows').innerHTML = shown.length ? shown.map(it => {
     const low = Number(it.balance) || 0;
     const flag = low < 20;
-    return `<tr class="bar ${flag ? 'bar-amber' : 'bar-pine'}" data-id="${it.id}"><td class="name">${it.product}</td><td>${it.par_level || 0}</td><td>${it.balance || 0}</td><td>${flag ? '<span class="status-pill status-Overdue">Reorder</span>' : '<span class="status-pill status-Paid">OK</span>'} <button type="button" class="btn ghost sm mov-btn" data-mov="${it.id}" style="margin-left:8px;">Movements</button></td></tr>`;
-  }).join('') : `<tr><td colspan="4" class="empty">No products yet.</td></tr>`;
+    return `<tr class="bar ${flag ? 'bar-amber' : 'bar-pine'}" data-id="${it.id}"><td class="name">${it.product}</td><td>${coName(it.companyId)}</td><td>${it.par_level || 0}</td><td>${it.balance || 0}</td>${showCost ? `<td>${it.avg_cost ? it.avg_cost.toFixed(2) : '<span style="color:var(--danger);">not set</span>'}</td>` : ''}<td>${flag ? '<span class="status-pill status-Overdue">Reorder</span>' : '<span class="status-pill status-Paid">OK</span>'} <button type="button" class="btn ghost sm mov-btn" data-mov="${it.id}" style="margin-left:8px;">Movements</button></td></tr>`;
+  }).join('') : `<tr><td colspan="6" class="empty">No products yet.</td></tr>`;
   document.querySelectorAll('#inventory-rows tr[data-id]').forEach(tr => tr.addEventListener('click', () => openInvItemModal(tr.dataset.id)));
   document.querySelectorAll('#inventory-rows .mov-btn').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); openMovementsForProduct(b.dataset.mov); }));
-  $('#inventory-list').innerHTML = inventory.map(it => `<option value="${it.product}">`).join('');
+  refreshProductList();
 }
 
 function renderAll() {
@@ -1723,7 +1952,7 @@ async function loadAll() {
     ]);
     invoices = inv.map(apiInvToUi);
     clients = cl.map(c => ({ id: c.id, name: c.name, address: c.address, trn: c.trn, po_box: c.po_box, email: c.email }));
-    inventory = invn.map(i => ({ id: i.id, product: i.product, brand: i.brand, price: parseFloat(i.price) || 0, par_level: parseFloat(i.par_level) || 0, balance: parseFloat(i.balance) || 0 }));
+    inventory = invn.map(i => ({ id: i.id, companyId: i.company_id, product: i.product, brand: i.brand, price: parseFloat(i.price) || 0, par_level: parseFloat(i.par_level) || 0, balance: parseFloat(i.balance) || 0, avg_cost: (i.avg_cost === undefined || i.avg_cost === null) ? null : (parseFloat(i.avg_cost) || 0) }));
     company = {
       name: co.name, address: co.address, trn: co.trn, phone: co.phone,
       email: co.email, website: co.website, signee: co.signee,
@@ -1834,7 +2063,7 @@ if ($('#f-currency')) $('#f-currency').addEventListener('change', recalcModalTot
 
 $('#items-wrap').addEventListener('input', (e) => {
   if (e.target.classList.contains('it-name')) {
-    const match = inventory.find(it => it.product.toLowerCase() === e.target.value.trim().toLowerCase());
+    const match = inventory.find(it => String(it.companyId) === String($('#f-company').value) && it.product.toLowerCase() === e.target.value.trim().toLowerCase());
     if (match) {
       const row = e.target.closest('.items-row');
       const brandInput = row.querySelector('.it-brand');
@@ -2218,15 +2447,72 @@ function openInvItemModal(id) {
   $('#inv-item-title').textContent = it ? 'Edit product' : 'Add product';
   $('#delete-inv-item-btn').style.display = it ? 'inline-block' : 'none';
   $('#adjust-stock-btn').style.display = (it && isAdmin()) ? 'inline-block' : 'none';
+  const _flt = $('#inv-company-filter') ? parseInt($('#inv-company-filter').value, 10) : NaN;
+  fillSelectCompanies($('#ii-company'), it ? it.companyId : (_flt || null), !!it);
   $('#ii-name').value = it ? it.product : '';
   $('#ii-brand').value = it ? (it.brand || '') : '';
   $('#ii-price').value = it ? (it.price || '') : '';
+  $('#ii-cost-field').style.display = isTrueAdmin() ? '' : 'none';
+  $('#ii-cost').value = (it && it.avg_cost) ? it.avg_cost : '';
   $('#ii-inventory').value = it ? (it.par_level || 0) : 0;
   $('#ii-balance-note').textContent = it ? ((it.balance || 0) + '  (use Adjust stock to change it)') : '0  (save the product first, then use Adjust stock)';
   $('#inv-item-overlay').classList.add('show');
 }
 
 $('#new-inv-item-btn').addEventListener('click', () => openInvItemModal(null));
+
+// ---- Opening stock (3B) ----
+async function osLoad() {
+  const cid = parseInt($('#os-company').value, 10);
+  const body = $('#os-body');
+  body.textContent = 'Loading...';
+  $('#os-post').style.display = 'none'; $('#os-undo').style.display = 'none'; $('#os-date-field').style.display = 'none';
+  let p;
+  try { p = await accJson('/api/accounting/opening-stock?company_id=' + cid, 'GET'); }
+  catch (err) { body.textContent = ''; toastErr(err.message); return; }
+  const cur = p.currency || '';
+  let h = `<div><b>${rptEsc(p.company_name)}</b> (${rptEsc(cur)})</div>`;
+  h += `<div>Stock counted: <b>${p.products_counted}</b> product(s), value <b>${p.stock_value} ${rptEsc(cur)}</b></div>`;
+  h += `<div>Inventory in the books now: ${p.inventory_in_books} ${rptEsc(cur)}</div>`;
+  if (p.products_missing_cost.length) h += `<div style="color:var(--danger);">${p.products_missing_cost.length} product(s) have stock but NO cost, so they are not counted: ${p.products_missing_cost.map(rptEsc).join(', ')}. Edit each product and type its average cost.</div>`;
+  if (p.accounts_missing.length) h += `<div style="color:var(--danger);">Missing accounts: ${p.accounts_missing.map(rptEsc).join(', ')}. Load the starter accounts first (Accounting > Chart of Accounts).</div>`;
+  if (!p.accounting_enabled) h += `<div style="color:var(--danger);">Accounting is OFF for this company.</div>`;
+  if (p.already_posted) {
+    h += `<div style="color:var(--pine);">Already in the books as <b>${rptEsc(p.posted_entry_number)}</b> (${rptEsc(p.posted_date || '')}).</div>`;
+    $('#os-undo').style.display = '';
+  } else {
+    const ok = p.accounting_enabled && !p.accounts_missing.length && p.products_counted > 0;
+    $('#os-post').style.display = ok ? '' : 'none';
+    $('#os-date-field').style.display = ok ? '' : 'none';
+  }
+  body.innerHTML = h;
+}
+$('#opening-stock-btn').addEventListener('click', async () => {
+  const flt = parseInt($('#inv-company-filter').value, 10);
+  fillSelectCompanies($('#os-company'), flt || null, false);
+  $('#os-date').value = new Date().toISOString().slice(0, 10);
+  $('#os-overlay').classList.add('show');
+  await osLoad();
+});
+$('#os-company').addEventListener('change', osLoad);
+$('#os-close').addEventListener('click', () => $('#os-overlay').classList.remove('show'));
+$('#os-post').addEventListener('click', async () => {
+  const cid = parseInt($('#os-company').value, 10);
+  if (!confirm('Post the opening stock for this company now? You can undo it afterwards.')) return;
+  try {
+    const r = await accJson('/api/accounting/opening-stock', 'POST', { company_id: cid, entry_date: $('#os-date').value || undefined });
+    toastOk('Opening stock posted');
+  } catch (err) { toastErr(err.message); }
+  await osLoad();
+});
+$('#os-undo').addEventListener('click', async () => {
+  const cid = parseInt($('#os-company').value, 10);
+  if (!confirm('Undo the opening stock for this company? A reversing entry is posted (nothing is deleted).')) return;
+  try { await accJson('/api/accounting/opening-stock/undo', 'POST', { company_id: cid }); toastOk('Opening stock undone'); }
+  catch (err) { toastErr(err.message); }
+  await osLoad();
+});
+$('#inv-company-filter').addEventListener('change', renderInventory);
 $('#cancel-inv-item-btn').addEventListener('click', () => $('#inv-item-overlay').classList.remove('show'));
 
 $('#inv-item-form').addEventListener('submit', async (e) => {
@@ -2236,7 +2522,14 @@ $('#inv-item-form').addEventListener('submit', async (e) => {
     brand: $('#ii-brand').value.trim() || null,
     price: parseFloat($('#ii-price').value) || 0,
     par_level: parseFloat($('#ii-inventory').value) || 0,
+    company_id: parseInt($('#ii-company').value, 10) || undefined,
   };
+  if (isTrueAdmin()) {
+    const _was = editingInvItemId ? (inventory.find(i => i.id === editingInvItemId) || {}).avg_cost : 0;
+    const _now = parseFloat($('#ii-cost').value);
+    const _nowV = isNaN(_now) ? 0 : _now;
+    if (!editingInvItemId || _nowV !== (_was || 0)) data.avg_cost = _nowV;
+  }
   if (!data.product) return;
   try {
     if (editingInvItemId) {
@@ -2412,6 +2705,7 @@ $('#company-form').addEventListener('submit', async (e) => {
 
 async function loadCompanies() {
   companies = await api('/api/companies');
+  try { renderInventory(); } catch (e) { /* screen not ready yet */ }
 }
 
 function renderCompanyList() {
@@ -3491,6 +3785,8 @@ async function openPOModal(id) {
   sel.innerHTML = '<option value="">' + (usable.length ? 'Select supplier...' : 'Add a supplier first') + '</option>'
     + usable.map(s => '<option value="' + s.id + '">' + poEsc(s.name) + (s.is_active ? '' : ' (inactive)') + '</option>').join('');
   sel.value = currentId ? String(currentId) : '';
+  fillSelectCompanies($('#po-company'), po ? po.company_id : null, false);
+  setProductListCompany($('#po-company').value);
 
   const st = $('#po-status');
   if (editable) {
@@ -3545,6 +3841,7 @@ async function savePO(e) {
 
   const payload = {
     supplier_id: parseInt(supplier, 10),
+    company_id: parseInt($('#po-company').value, 10) || undefined,
     order_date: orderDate,
     expected_date: expected || null,
     notes: $('#po-notes').value.trim() || null,
@@ -3668,6 +3965,7 @@ async function submitGRN(e) {
   byId('po-form').addEventListener('submit', savePO);
   byId('po-close-btn').addEventListener('click', closePOModal);
   byId('po-cancel-order-btn').addEventListener('click', cancelPO);
+  byId('po-company').addEventListener('change', () => setProductListCompany(byId('po-company').value));
   byId('po-add-line').addEventListener('click', () => {
     byId('po-items-wrap').insertAdjacentHTML('beforeend', poRowHtml({}));
     recalcPOTotals();
@@ -3675,7 +3973,7 @@ async function submitGRN(e) {
   byId('po-items-wrap').addEventListener('input', e => {
     if (e.target.classList.contains('po-name')) {
       const typed = e.target.value.trim().toLowerCase();
-      const match = (typeof inventory !== 'undefined' ? inventory : []).find(it => (it.product || '').toLowerCase() === typed);
+      const match = (typeof inventory !== 'undefined' ? inventory : []).find(it => String(it.companyId) === String(byId('po-company').value) && (it.product || '').toLowerCase() === typed);
       if (match) {
         const brand = e.target.closest('.po-row').querySelector('.po-brand');
         if (!brand.value) brand.value = match.brand || '';
@@ -3810,7 +4108,7 @@ function applyCompanyCurrency(inv) {
 (function wireCompanyCurrency() {
   const co = $('#f-company');
   if (!co) return;
-  co.addEventListener('change', () => { applyCompanyCurrency(null); recalcModalTotals(); });
+  co.addEventListener('change', () => { applyCompanyCurrency(null); setProductListCompany(co.value); recalcModalTotals(); });
 })();
 
 // ==========================================================
@@ -3838,17 +4136,42 @@ function rptError(err) {
   rptSetContent('<div class="empty" style="color:var(--danger);">' + rptEsc((err && err.message) || 'Could not load this report.') + '</div>');
 }
 
+function rptCompanyQuery() {
+  const s = document.getElementById('rpt-company');
+  return (s && s.value) ? ('?company_id=' + encodeURIComponent(s.value)) : '';
+}
+function rptFillCompany() {
+  const s = document.getElementById('rpt-company');
+  if (!s) return;
+  const keep = s.value;
+  const list = (typeof companies !== 'undefined' ? companies : []);
+  s.innerHTML = list.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  if (Array.prototype.some.call(s.options, o => o.value === keep)) s.value = keep;
+  if (!s.dataset.bound) {
+    s.dataset.bound = '1';
+    s.addEventListener('change', () => switchReportTab(rptCurrent));
+  }
+  if (!list.length) loadCompanies().then(rptFillCompany).catch(() => {});
+}
+
 function switchReportTab(reportType) {
   const valid = ['inventory-valuation', 'stock-aging', 'sales-summary'];
+  if (isTrueAdmin()) valid.push('profit-loss', 'balance-sheet');
+  ['rpt-tab-pl', 'rpt-tab-bs'].forEach(id => { const b = document.getElementById(id); if (b) b.style.display = isTrueAdmin() ? '' : 'none'; });
   rptCurrent = valid.indexOf(reportType) >= 0 ? reportType : 'inventory-valuation';
   document.querySelectorAll('#report-tabs .report-tab').forEach(b => {
     b.classList.toggle('active', b.dataset.report === rptCurrent);
   });
   const filters = document.getElementById('report-filters');
-  if (filters) filters.style.display = rptCurrent === 'sales-summary' ? 'flex' : 'none';
+  if (filters) filters.style.display = (rptCurrent === 'sales-summary' || rptCurrent === 'profit-loss' || rptCurrent === 'balance-sheet') ? 'flex' : 'none';
+  const cbar = document.getElementById('report-company-bar');
+  if (cbar) cbar.style.display = rptCurrent === 'sales-summary' ? 'none' : 'flex';
+  rptFillCompany();
   rptSetContent('<div class="empty">Loading...</div>');
   if (rptCurrent === 'inventory-valuation') loadInventoryValuation();
   else if (rptCurrent === 'stock-aging') loadStockAging();
+  else if (rptCurrent === 'profit-loss') loadProfitLoss();
+  else if (rptCurrent === 'balance-sheet') loadBalanceSheet();
   else loadSalesSummary();
 }
 
@@ -3856,7 +4179,7 @@ function switchReportTab(reportType) {
 async function loadInventoryValuation() {
   const seq = ++rptSeq;
   let d;
-  try { d = await api('/api/reports/inventory-valuation'); }
+  try { d = await api('/api/reports/inventory-valuation' + rptCompanyQuery()); }
   catch (err) { if (seq === rptSeq) rptError(err); return; }
   if (seq !== rptSeq) return;
   const th = 'style="text-align:right;"';
@@ -3867,7 +4190,7 @@ async function loadInventoryValuation() {
   const note = guess
     ? `<div class="rpt-note">${guess} product${guess === 1 ? '' : 's'} never received on a purchase order, so the selling price is used as the cost (marked <b>Selling price</b> below).</div>`
     : '';
-  const scopeNote = `<div class="rpt-note">Valued in <b>${rptEsc(cur)}</b>${scope.company_name ? ' (' + rptEsc(scope.company_name) + ')' : ''}. Stock is shared by all companies and purchase orders have no currency of their own, so all amounts here are taken as ${rptEsc(cur)}.</div>`;
+  const scopeNote = `<div class="rpt-note">Valued in <b>${rptEsc(cur)}</b>${scope.company_name ? ' (' + rptEsc(scope.company_name) + ')' : ''}. This is the company's own stock, valued from its own purchase orders.</div>`;
   const cards = '<div class="stats">'
     + rptCard('Total stock value (at cost)', fmt(d.total_value, cur), 'stat-c-pine')
     + rptCard('Products in stock', d.total_items || 0, 'stat-c-blue')
@@ -3880,7 +4203,7 @@ async function loadInventoryValuation() {
       <td ${th}>${Number(i.balance).toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
       <td ${th}>${fmt(i.unit_cost, cur)}</td>
       <td ${th}>${fmt(i.total_value, cur)}</td>
-      <td>${i.cost_source === 'purchase' ? '<span class="rpt-pill rpt-ok">Purchase</span>' : '<span class="rpt-pill rpt-warn">Selling price</span>'}</td>
+      <td>${i.cost_source === 'average_cost' ? '<span class="rpt-pill rpt-ok">Average cost</span>' : (i.cost_source === 'purchase' ? '<span class="rpt-pill rpt-ok">Purchase</span>' : '<span class="rpt-pill rpt-warn">Selling price</span>')}</td>
     </tr>`).join('');
     table = `<div style="overflow-x:auto;"><table>
       <thead><tr><th>Product</th><th ${th}>Balance</th><th ${th}>Unit cost</th><th ${th}>Total value</th><th>Cost source</th></tr></thead>
@@ -3900,7 +4223,7 @@ const RPT_GROUPS = {
 async function loadStockAging() {
   const seq = ++rptSeq;
   let d;
-  try { d = await api('/api/reports/stock-aging'); }
+  try { d = await api('/api/reports/stock-aging' + rptCompanyQuery()); }
   catch (err) { if (seq === rptSeq) rptError(err); return; }
   if (seq !== rptSeq) return;
   rptAgingData = d;
@@ -3955,7 +4278,7 @@ function rptQuickRange(kind) {
   const f = document.getElementById('rpt-from'), t = document.getElementById('rpt-to');
   if (f) f.value = from;
   if (t) t.value = to;
-  loadSalesSummary();
+  rptReload();
 }
 
 async function loadSalesSummary() {
@@ -4000,6 +4323,91 @@ async function loadSalesSummary() {
   rptSetContent(note + html);
 }
 
+// ---------- Financial reports (3F): Profit & Loss and Balance Sheet, straight from the journals ----------
+function rptReload() {
+  if (rptCurrent === 'profit-loss') loadProfitLoss();
+  else if (rptCurrent === 'balance-sheet') loadBalanceSheet();
+  else loadSalesSummary();
+}
+function finCls(n) { n = Number(n); return n > 0 ? 'fin-pos' : (n < 0 ? 'fin-neg' : ''); }
+function finRow(label, amount, cur, cls, color) {
+  const c = color === false ? '' : finCls(amount);
+  return `<tr class="${cls || ''}"><td>${rptEsc(label)}</td><td class="amt ${c}">${fmt(amount, cur)}</td></tr>`;
+}
+function finRange() {
+  const from = (document.getElementById('rpt-from') || {}).value || '';
+  const to = (document.getElementById('rpt-to') || {}).value || '';
+  return { from, to };
+}
+async function loadProfitLoss() {
+  const seq = ++rptSeq;
+  const { from, to } = finRange();
+  if (from && to && from > to) { rptSetContent('<div class="empty" style="color:var(--danger);">"From" must not be after "To".</div>'); return; }
+  const params = new URLSearchParams();
+  const cid = (document.getElementById('rpt-company') || {}).value;
+  if (cid) params.set('company_id', cid);
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  let d;
+  try { d = await api('/api/reports/profit-loss?' + params.toString()); }
+  catch (err) { if (seq === rptSeq) rptError(err); return; }
+  if (seq !== rptSeq) return;
+  const cur = d.currency || 'USD';
+  const period = (from || to) ? `${rptEsc(from || 'the start')} to ${rptEsc(to || 'today')}` : 'all time';
+  const note = `<div class="rpt-note">${rptEsc(d.company_name)} &mdash; amounts in <b>${rptEsc(cur)}</b>, period: ${period}. Taken from the posted journals of this company (Accounting). Drafts and quotations are not in the books.</div>`;
+  const rev = (d.revenue_lines || []).map(l => finRow(l.code + '  ' + l.name, l.amount, cur, 'ind')).join('');
+  const exp = (d.expenses || []).map(l => finRow(l.code + '  ' + l.name, l.amount, cur, 'ind', false)).join('');
+  const html = `<div class="stats">
+      ${rptCard('Revenue', fmt(d.revenue, cur), 'stat-c-pine')}
+      ${rptCard('Gross profit', `<span class="${finCls(d.gross_profit)}">${fmt(d.gross_profit, cur)}</span>`, 'stat-c-blue')}
+      ${rptCard('Net profit', `<span class="${finCls(d.net_profit)}">${fmt(d.net_profit, cur)}</span>`, 'stat-c-amber')}
+    </div>
+    <div class="fin-wrap"><table class="fin-table"><tbody>
+      ${rev}
+      ${finRow('Revenue', d.revenue, cur, 'sub')}
+      ${finRow('Less: Cost of goods sold (5000)', d.cogs, cur, '', false)}
+      ${finRow('Gross profit', d.gross_profit, cur, 'sub')}
+      ${exp}
+      ${finRow('Less: Total expenses', d.total_expenses, cur, 'sub', false)}
+      ${finRow('NET PROFIT', d.net_profit, cur, 'big')}
+    </tbody></table></div>`;
+  rptSetContent(note + html);
+}
+async function loadBalanceSheet() {
+  const seq = ++rptSeq;
+  const { to } = finRange();
+  const params = new URLSearchParams();
+  const cid = (document.getElementById('rpt-company') || {}).value;
+  if (cid) params.set('company_id', cid);
+  if (to) params.set('to', to);
+  let d;
+  try { d = await api('/api/reports/balance-sheet?' + params.toString()); }
+  catch (err) { if (seq === rptSeq) rptError(err); return; }
+  if (seq !== rptSeq) return;
+  const cur = d.currency || 'USD';
+  const note = `<div class="rpt-note">${rptEsc(d.company_name)} &mdash; amounts in <b>${rptEsc(cur)}</b>, as of <b>${rptEsc(d.as_of)}</b>. A balance sheet covers everything up to that date, so the "From" date is not used. Equity includes the profit earned to that date.</div>`;
+  const badge = d.balanced
+    ? '<div class="fin-badge rpt-ok">Balanced</div>'
+    : `<div class="fin-badge rpt-bad">Out of balance by ${fmt(d.difference, cur)}</div>`;
+  const lines = (arr) => (arr || []).map(l => finRow((l.code ? l.code + '  ' : '') + l.name, l.amount, cur, 'ind', false)).join('');
+  const html = badge + `<div class="fin-grid">
+      <div class="fin-wrap"><h3>Assets</h3><table class="fin-table"><tbody>
+        ${lines(d.assets)}
+        ${finRow('Total assets', d.total_assets, cur, 'big', false)}
+      </tbody></table></div>
+      <div class="fin-wrap"><h3>Liabilities</h3><table class="fin-table"><tbody>
+        ${lines(d.liabilities)}
+        ${finRow('Total liabilities', d.total_liabilities, cur, 'sub', false)}
+      </tbody></table>
+        <h3>Equity</h3><table class="fin-table"><tbody>
+        ${lines(d.equity)}
+        ${finRow('Total equity', d.total_equity, cur, 'sub', false)}
+        ${finRow('Liabilities + Equity', (Number(d.total_liabilities) + Number(d.total_equity)).toFixed(2), cur, 'big', false)}
+      </tbody></table></div>
+    </div>`;
+  rptSetContent(note + html);
+}
+
 (function wireReports() {
   document.querySelectorAll('#report-tabs .report-tab').forEach(b => {
     b.addEventListener('click', () => switchReportTab(b.dataset.report));
@@ -4008,7 +4416,7 @@ async function loadSalesSummary() {
     b.addEventListener('click', () => rptQuickRange(b.dataset.rptQuick));
   });
   const apply = document.getElementById('rpt-apply');
-  if (apply) apply.addEventListener('click', () => loadSalesSummary());
+  if (apply) apply.addEventListener('click', () => rptReload());
   const content = document.getElementById('report-content');
   if (content) content.addEventListener('click', e => {
     const card = e.target.closest('[data-aging]');
@@ -4113,7 +4521,7 @@ async function loadSalesSummary() {
 (function navGroupColors() {
   var nav = document.querySelector('.rail nav');
   if (!nav) return;
-  var map = { 'main menu': 'ng-main', 'sales': 'ng-sales', 'purchasing': 'ng-purchasing', 'inventory': 'ng-inventory', 'reports': 'ng-reports', 'settings': 'ng-settings' };
+  var map = { 'main menu': 'ng-main', 'sales': 'ng-sales', 'purchasing': 'ng-purchasing', 'inventory': 'ng-inventory', 'reports': 'ng-reports', 'accounting': 'ng-reports', 'settings': 'ng-settings' };
   Array.prototype.forEach.call(nav.querySelectorAll('.nav-section'), function (h) {
     var cls = map[h.textContent.trim().toLowerCase()];
     if (!cls) return;
@@ -4214,15 +4622,123 @@ async function accEnsureCompanies() {
 }
 
 function switchAccTab(tab) {
-  acc.tab = ['journals', 'trial'].indexOf(tab) >= 0 ? tab : 'accounts';
+  acc.tab = ['journals', 'trial', 'pl', 'bs'].indexOf(tab) >= 0 ? tab : 'accounts';
   document.querySelectorAll('#acc-tabs .report-tab').forEach(b => b.classList.toggle('active', b.dataset.accTab === acc.tab));
-  ['accounts', 'journals', 'trial'].forEach(t => { document.getElementById('acc-pane-' + t).style.display = acc.tab === t ? '' : 'none'; });
+  const _pane = (acc.tab === 'pl' || acc.tab === 'bs') ? 'fin' : acc.tab;
+  ['accounts', 'journals', 'trial', 'fin'].forEach(t => { document.getElementById('acc-pane-' + t).style.display = _pane === t ? '' : 'none'; });
   accEnsureCompanies().then(() => {
     if (acc.tab === 'accounts') loadAccounts();
     else if (acc.tab === 'journals') loadJournals();
-    else loadTrialBalance();
+    else if (acc.tab === 'trial') loadTrialBalance();
+    else finShow();
   });
 }
+
+// ---------- Profit & Loss and Balance Sheet (3G: inside the Accounting page) ----------
+let finSeq = 0;
+function finShow() {
+  const sel = document.getElementById('fin-company');
+  if (!sel.options.length || sel.dataset.n !== String(acc.companies.length)) {
+    const keep = sel.value;
+    sel.innerHTML = accCompanyOptions(acc.companies.length ? acc.companies[0].id : null, false);
+    if (keep && Array.prototype.some.call(sel.options, o => o.value === keep)) sel.value = keep;
+    sel.dataset.n = String(acc.companies.length);
+  }
+  const f = document.getElementById('fin-from'), t = document.getElementById('fin-to');
+  if (!f.value && !t.value && !f.dataset.init) {
+    f.dataset.init = '1';
+    const now = new Date();
+    f.value = rptYMD(new Date(now.getFullYear(), now.getMonth(), 1));
+    t.value = rptYMD(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+  }
+  document.getElementById('fin-from-wrap').style.display = acc.tab === 'bs' ? 'none' : '';
+  finLoad();
+}
+function finQuick(kind) {
+  const now = new Date();
+  let from = '', to = '';
+  if (kind === 'this-month') { from = rptYMD(new Date(now.getFullYear(), now.getMonth(), 1)); to = rptYMD(new Date(now.getFullYear(), now.getMonth() + 1, 0)); }
+  else if (kind === 'last-month') { from = rptYMD(new Date(now.getFullYear(), now.getMonth() - 1, 1)); to = rptYMD(new Date(now.getFullYear(), now.getMonth(), 0)); }
+  else if (kind === 'this-year') { from = now.getFullYear() + '-01-01'; to = now.getFullYear() + '-12-31'; }
+  document.getElementById('fin-from').value = from;
+  document.getElementById('fin-to').value = to;
+  finLoad();
+}
+function finSet(html) { document.getElementById('fin-body').innerHTML = html; }
+async function finLoad() {
+  const kind = acc.tab;
+  if (kind !== 'pl' && kind !== 'bs') return;
+  const seq = ++finSeq;
+  const from = document.getElementById('fin-from').value;
+  const to = document.getElementById('fin-to').value;
+  const cid = document.getElementById('fin-company').value;
+  if (!cid) { finSet('<div class="empty">Choose a company.</div>'); return; }
+  if (kind === 'pl' && from && to && from > to) { finSet('<div class="empty" style="color:var(--danger);">"From" must not be after "To".</div>'); return; }
+  const params = new URLSearchParams();
+  params.set('company_id', cid);
+  if (kind === 'pl' && from) params.set('from', from);
+  if (to) params.set('to', to);
+  finSet('<div class="empty">Loading...</div>');
+  let d;
+  try { d = await api('/api/reports/' + (kind === 'pl' ? 'profit-loss' : 'balance-sheet') + '?' + params.toString()); }
+  catch (err) { if (seq === finSeq) finSet('<div class="empty" style="color:var(--danger);">' + rptEsc(err.message || 'Could not load this report.') + '</div>'); return; }
+  if (seq !== finSeq) return;
+  const cur = d.currency || 'USD';
+  if (kind === 'pl') {
+    const period = (from || to) ? `${rptEsc(from || 'the start')} to ${rptEsc(to || 'today')}` : 'all time';
+    const note = `<div class="rpt-note">${rptEsc(d.company_name)} &mdash; amounts in <b>${rptEsc(cur)}</b>, period: ${period}. Taken from the posted journals of this company. Drafts and quotations are not in the books.</div>`;
+    const rev = (d.revenue_lines || []).map(l => finRow(l.code + '  ' + l.name, l.amount, cur, 'ind')).join('');
+    const exp = (d.expenses || []).map(l => finRow(l.code + '  ' + l.name, l.amount, cur, 'ind', false)).join('');
+    finSet(note + `<div class="stats">
+        ${rptCard('Revenue', fmt(d.revenue, cur), 'stat-c-pine')}
+        ${rptCard('Gross profit', `<span class="${finCls(d.gross_profit)}">${fmt(d.gross_profit, cur)}</span>`, 'stat-c-blue')}
+        ${rptCard('Net profit', `<span class="${finCls(d.net_profit)}">${fmt(d.net_profit, cur)}</span>`, 'stat-c-amber')}
+      </div>
+      <div class="fin-wrap"><table class="fin-table"><tbody>
+        ${rev}
+        ${finRow('Revenue', d.revenue, cur, 'sub')}
+        ${finRow('Less: Cost of goods sold (5000)', d.cogs, cur, '', false)}
+        ${finRow('Gross profit', d.gross_profit, cur, 'sub')}
+        ${exp}
+        ${finRow('Less: Total expenses', d.total_expenses, cur, 'sub', false)}
+        ${finRow('NET PROFIT', d.net_profit, cur, 'big')}
+      </tbody></table></div>`);
+  } else {
+    const note = `<div class="rpt-note">${rptEsc(d.company_name)} &mdash; amounts in <b>${rptEsc(cur)}</b>, as of <b>${rptEsc(d.as_of)}</b>. A balance sheet covers everything up to that date, so there is no "From" date. Equity includes the profit earned to that date.</div>`;
+    const badge = d.balanced ? '<div class="fin-badge rpt-ok">Balanced</div>' : `<div class="fin-badge rpt-bad">Out of balance by ${fmt(d.difference, cur)}</div>`;
+    const lines = (arr) => (arr || []).map(l => finRow((l.code ? l.code + '  ' : '') + l.name, l.amount, cur, 'ind', false)).join('');
+    finSet(note + badge + `<div class="fin-grid">
+        <div class="fin-wrap"><h3>Assets</h3><table class="fin-table"><tbody>
+          ${lines(d.assets)}
+          ${finRow('Total assets', d.total_assets, cur, 'big', false)}
+        </tbody></table></div>
+        <div class="fin-wrap"><h3>Liabilities</h3><table class="fin-table"><tbody>
+          ${lines(d.liabilities)}
+          ${finRow('Total liabilities', d.total_liabilities, cur, 'sub', false)}
+        </tbody></table>
+          <h3>Equity</h3><table class="fin-table"><tbody>
+          ${lines(d.equity)}
+          ${finRow('Total equity', d.total_equity, cur, 'sub', false)}
+          ${finRow('Liabilities + Equity', (Number(d.total_liabilities) + Number(d.total_equity)).toFixed(2), cur, 'big', false)}
+        </tbody></table></div>
+      </div>`);
+  }
+}
+(function wireFin() {
+  document.getElementById('fin-apply').addEventListener('click', finLoad);
+  document.getElementById('fin-company').addEventListener('change', finLoad);
+  document.querySelectorAll('[data-fin-quick]').forEach(b => b.addEventListener('click', () => finQuick(b.dataset.finQuick)));
+  const z = document.getElementById('ui-zoom-select');
+  if (z) {
+    let cur = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ui-zoom')) || 0.85;
+    z.value = String(cur);
+    if (z.value !== String(cur)) z.value = '0.85';
+    z.addEventListener('change', () => {
+      document.documentElement.style.setProperty('--ui-zoom', z.value);
+      try { localStorage.setItem('uiZoom', z.value); } catch (e) {}
+    });
+  }
+})();
 
 // ---------- accounts ----------
 async function loadAccounts() {

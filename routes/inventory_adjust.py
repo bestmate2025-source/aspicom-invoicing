@@ -18,13 +18,15 @@ must NOT also edit the balance itself, or the change would be applied twice.
 from __future__ import annotations
 
 import math
+from datetime import date
 from decimal import Decimal, InvalidOperation
 
 from flask import Blueprint, request
 from sqlalchemy.exc import SQLAlchemyError
 
 from extensions import db
-from models import Inventory
+from models import Company, Inventory
+from utils.accounting_auto import AccountingError, post_stock_adjustment
 from utils.responses import api_response
 from utils.stock_movements import get_current_user_id, log_movement
 
@@ -100,7 +102,7 @@ def adjust_inventory(inventory_id: int):
         return api_response(error="not_found", message="Inventory item not found."), 404
 
     try:
-        log_movement(
+        movement = log_movement(
             inventory_id=item.id,
             product_name=item.product,
             change_qty=cleaned["change_qty"],
@@ -108,7 +110,17 @@ def adjust_inventory(inventory_id: int):
             notes=cleaned["notes"],
             created_by=get_current_user_id(),
         )
+        # Wave 3E: book the change (at average cost) when the company's accounting is on.
+        # movement.change_qty is what REALLY happened (the balance never goes below 0).
+        db.session.flush()
+        post_stock_adjustment(
+            Company.query.get(item.company_id), movement.id, item.product, cleaned["reason"],
+            movement.change_qty, item.avg_cost, date.today(),
+        )
         db.session.commit()
+    except AccountingError as exc:
+        db.session.rollback()
+        return api_response(error="accounting_error", message=str(exc)), 409
     except ValueError as exc:
         db.session.rollback()
         return api_response(error="invalid_value", message=str(exc)), 400

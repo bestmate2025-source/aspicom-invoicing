@@ -3,8 +3,11 @@
 Follows routes/clients.py and routes/company.py patterns: api_response()
 envelope on every return, whitelisted editable fields, a specific DB
 constraint caught ahead of the broader SQLAlchemyError. Here that's a
-duplicate `product` name (inventory.product is UNIQUE) rather than an FK
+duplicate `product` name (unique PER COMPANY since Wave 3A) rather than an FK
 conflict — same principle as clients.py's 409, different constraint.
+
+Wave 3A: every company has its own stock. Each product belongs to one company
+(inventory.company_id) and that cannot be changed later.
 
 vat_percent on inventory = the DEFAULT VAT% for this product. When the
 product is added to an invoice, this value auto-fills the line item's
@@ -19,14 +22,17 @@ from flask import Blueprint, request
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from extensions import db
-from models import Inventory
+from models import Company, Inventory
+from utils.accounting_auto import opening_posted
+from utils.auth import get_current_user
 from utils.responses import api_response
 
 inventory_bp = Blueprint("inventory", __name__)
 
-EDITABLE_FIELDS = {"product", "brand", "price", "vat_percent", "par_level", "balance"}
-DECIMAL_FIELDS = {"price", "vat_percent", "par_level", "balance"}
-PUT_EDITABLE_FIELDS = {"product", "brand", "price", "vat_percent", "par_level"}  # no balance - use /adjust endpoint
+EDITABLE_FIELDS = {"company_id", "product", "brand", "price", "vat_percent", "par_level", "balance", "avg_cost"}
+DECIMAL_FIELDS = {"price", "vat_percent", "par_level", "balance", "avg_cost"}
+PUT_EDITABLE_FIELDS = {"product", "brand", "price", "vat_percent", "par_level", "avg_cost"}  # no balance - use /adjust endpoint
+# company_id is also accepted on PUT, but only when it is the same company (the edit screen sends it back).
 
 
 def _to_decimal(value) -> Decimal:
@@ -42,18 +48,46 @@ def _to_decimal(value) -> Decimal:
         raise ValueError(f"'{value}' is not a valid number.")
 
 
+def _is_admin() -> bool:
+    actor = get_current_user()
+    return actor is not None and actor.role == "admin"
+
+
+def _view(item) -> dict:
+    """Cost is the owner's business: only an admin sees avg_cost."""
+    data = item.to_dict()
+    if not _is_admin():
+        data.pop("avg_cost", None)
+    return data
+
+
+def _cost_denied():
+    return api_response(error="forbidden", message="Only an admin can set a product's cost."), 403
+
+
+def _primary_company_id():
+    row = db.session.query(Company.id).order_by(Company.id.asc()).first()
+    return row[0] if row else None
+
+
 @inventory_bp.route("", methods=["GET"])
 def list_inventory():
-    """GET /api/inventory — list all products, alphabetical.
+    """GET /api/inventory — list products, alphabetical.
 
     Query params:
-        low_stock=1 — only products where balance < par_level.
+        company_id=N — only that company's stock (leave out = all companies).
+        low_stock=1  — only products where balance < par_level.
     """
     query = Inventory.query
+    raw_company = request.args.get("company_id")
+    if raw_company not in (None, ""):
+        if not raw_company.isdigit():
+            return api_response(error="invalid_type", message="'company_id' must be a whole number."), 400
+        query = query.filter(Inventory.company_id == int(raw_company))
     if request.args.get("low_stock") == "1":
         query = query.filter(Inventory.balance < Inventory.par_level)
     items = query.order_by(Inventory.product.asc()).all()
-    return api_response(data=[i.to_dict() for i in items]), 200
+    return api_response(data=[_view(i) for i in items]), 200
 
 
 @inventory_bp.route("", methods=["POST"])
@@ -90,13 +124,29 @@ def create_inventory_item():
     if "vat_percent" in decimals and not (Decimal("0") <= decimals["vat_percent"] <= Decimal("100")):
         return api_response(error="invalid_type", message="'vat_percent' must be between 0 and 100."), 400
 
+    if "avg_cost" in body and not _is_admin():
+        return _cost_denied()
+    if "avg_cost" in decimals and decimals["avg_cost"] < 0:
+        return api_response(error="invalid_type", message="'avg_cost' cannot be negative."), 400
+
+    # Which company's stock? Sent by the screen. If it is missing we use the first company.
+    company_id = body.get("company_id")
+    if company_id is None:
+        company_id = _primary_company_id()
+    if isinstance(company_id, bool) or not isinstance(company_id, int):
+        return api_response(error="invalid_type", message="'company_id' must be a whole number."), 400
+    if Company.query.get(company_id) is None:
+        return api_response(error="fk_conflict", message=f"No company with id {company_id}."), 409
+
     item = Inventory(
+        company_id=company_id,
         product=product.strip(),
         brand=body.get("brand"),
         price=decimals.get("price", Decimal("0")),
         vat_percent=decimals.get("vat_percent", Decimal("5")),
         par_level=decimals.get("par_level", Decimal("0")),
         balance=decimals.get("balance", Decimal("0")),
+        avg_cost=decimals.get("avg_cost", Decimal("0")),
     )
     db.session.add(item)
     try:
@@ -104,13 +154,13 @@ def create_inventory_item():
     except IntegrityError:
         db.session.rollback()
         return api_response(
-            error="conflict", message=f"A product named '{product.strip()}' already exists."
+            error="conflict", message=f"A product named '{product.strip()}' already exists in this company's stock."
         ), 409
     except SQLAlchemyError as exc:
         db.session.rollback()
         return api_response(error="db_error", message=str(exc)), 500
 
-    return api_response(data=item.to_dict()), 201
+    return api_response(data=_view(item)), 201
 
 
 @inventory_bp.route("/<int:item_id>", methods=["PUT"])
@@ -123,6 +173,14 @@ def update_inventory_item(item_id: int):
     body = request.get_json(silent=True)
     if body is None or not isinstance(body, dict):
         return api_response(error="invalid_json", message="Request body must be a JSON object."), 400
+
+    if "company_id" in body:
+        if body["company_id"] != item.company_id:
+            return api_response(
+                error="company_locked",
+                message="A product belongs to one company and cannot be moved to another. Add it to the other company instead.",
+            ), 400
+        body = {k: v for k, v in body.items() if k != "company_id"}
 
     unknown = set(body.keys()) - PUT_EDITABLE_FIELDS
     if unknown:
@@ -147,6 +205,19 @@ def update_inventory_item(item_id: int):
     if "vat_percent" in decimals and not (Decimal("0") <= decimals["vat_percent"] <= Decimal("100")):
         return api_response(error="invalid_type", message="'vat_percent' must be between 0 and 100."), 400
 
+    if "avg_cost" in body:
+        if not _is_admin():
+            return _cost_denied()
+        if "avg_cost" in decimals:
+            if decimals["avg_cost"] < 0:
+                return api_response(error="invalid_type", message="'avg_cost' cannot be negative."), 400
+            if decimals["avg_cost"] != (item.avg_cost or 0) and opening_posted(item.company_id):
+                return api_response(
+                    error="cost_locked",
+                    message="This company's opening stock is already in the books, so the cost cannot be typed over by hand any more. "
+                            "Undo the opening stock first, or let purchases move the cost.",
+                ), 409
+
     if "product" in body:
         item.product = body["product"].strip()
     if "brand" in body:
@@ -159,13 +230,13 @@ def update_inventory_item(item_id: int):
     except IntegrityError:
         db.session.rollback()
         return api_response(
-            error="conflict", message=f"A product named '{item.product}' already exists."
+            error="conflict", message=f"A product named '{item.product}' already exists in this company's stock."
         ), 409
     except SQLAlchemyError as exc:
         db.session.rollback()
         return api_response(error="db_error", message=str(exc)), 500
 
-    return api_response(data=item.to_dict()), 200
+    return api_response(data=_view(item)), 200
 
 
 @inventory_bp.route("/<int:item_id>", methods=["DELETE"])

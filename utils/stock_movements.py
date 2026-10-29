@@ -1,4 +1,4 @@
-﻿"""Helpers for the stock_movements log (ERP Phase 1 — Stock Movement Foundation).
+"""Helpers for the stock_movements log (ERP Phase 1 — Stock Movement Foundation).
 
 Rule of the house: nothing changes inventory.balance directly any more.
 Everything goes through log_movement(), which updates the balance AND writes
@@ -34,12 +34,16 @@ def get_current_user_id() -> int | None:
     return getattr(user, "id", None)
 
 
-def find_inventory_by_name(product_name: str | None) -> Inventory | None:
-    """Case-insensitive product lookup. Returns the Inventory row or None."""
-    if not product_name or not product_name.strip():
+def find_inventory_by_name(product_name: str | None, company_id: int | None) -> Inventory | None:
+    """Case-insensitive product lookup INSIDE ONE COMPANY's stock. Returns the Inventory row or None.
+
+    Wave 3A: each company has its own stock, so the company is required - a product with the
+    same name in another company's stock is never touched."""
+    if not product_name or not product_name.strip() or company_id is None:
         return None
     return Inventory.query.filter(
-        func.lower(Inventory.product) == product_name.strip().lower()
+        Inventory.company_id == company_id,
+        func.lower(Inventory.product) == product_name.strip().lower(),
     ).first()
 
 

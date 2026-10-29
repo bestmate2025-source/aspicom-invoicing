@@ -1,4 +1,4 @@
-﻿"""Routes for the stock movement history (read-only).
+"""Routes for the stock movement history (read-only).
 
 GET /api/inventory/<id>/movements   — history of one product
 GET /api/stock-movements            — global history with filters + paging
@@ -13,7 +13,9 @@ from datetime import date, datetime, time, timedelta
 
 from flask import Blueprint, request
 
-from models import StockMovement
+from extensions import db
+
+from models import Inventory, StockMovement
 from utils.responses import api_response
 from utils.stock_movements import VALID_REASONS
 
@@ -56,6 +58,14 @@ def _filtered_query(inventory_id: int | None = None):
         inventory_id = _int_arg("inventory_id", 0, 1)
     if inventory_id is not None:
         query = query.filter(StockMovement.inventory_id == inventory_id)
+
+    raw_company = request.args.get("company_id")
+    if raw_company:
+        company_id = _int_arg("company_id", 0, 1)
+        # a movement belongs to the company of its product (Wave 3A)
+        query = query.filter(
+            StockMovement.inventory_id.in_(db.session.query(Inventory.id).filter(Inventory.company_id == company_id))
+        )
 
     date_from = _date_arg("from")
     date_to = _date_arg("to")

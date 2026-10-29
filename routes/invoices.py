@@ -24,6 +24,13 @@ writes a stock_movements history row. Quotations never touch stock.
 Only PAID qty moves stock (foc_qty does not), same as before Phase 1.
 
 Audit trail: same rules as before — one row per changed field on PUT.
+
+Accounting (Wave 2B): when a company has accounting switched ON, an invoice that is
+Sent / Paid / Overdue keeps ONE journal in that company's books (see
+utils/accounting_auto.py). Every route that changes an invoice calls
+sync_invoice_journal() before the single commit, so the invoice, its stock and its
+journal are saved together or not at all. Companies with accounting OFF behave exactly
+as before. Quotations and Drafts never post.
 """
 
 from __future__ import annotations
@@ -36,6 +43,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from extensions import db
 from models import Client, Company, Inventory, Invoice, InvoiceAudit, InvoiceItem, InvoicePayment
+from utils.accounting_auto import AccountingError, currency_problem, sync_invoice_journal
 from utils.responses import api_response
 from utils.stock_movements import (
     find_inventory_by_name,
@@ -305,7 +313,7 @@ def _log_sale_movements(lines, reason: str, invoice: Invoice) -> None:
     Uses only PAID qty (foc_qty does NOT move stock — unchanged from before Phase 1).
     """
     for product_name, qty in lines:
-        match = find_inventory_by_name(product_name)
+        match = find_inventory_by_name(product_name, invoice.company_id)
         if match is None:
             continue
         log_movement(
@@ -343,7 +351,7 @@ def _log_edit_movements(invoice: Invoice, new_cleaned_items: list[dict]) -> None
         delta = new_qty - old_qty
         if delta == 0:
             continue
-        match = find_inventory_by_name(key)
+        match = find_inventory_by_name(key, invoice.company_id)
         if match is None:
             continue
         log_movement(
@@ -383,7 +391,7 @@ def _log_delete_movements(invoice: Invoice) -> None:
         return
 
     for product_name, qty in _qty_by_product((i.product_name, i.qty) for i in invoice.items).items():
-        match = find_inventory_by_name(product_name)
+        match = find_inventory_by_name(product_name, invoice.company_id)
         if match is None:
             continue
         log_movement(
@@ -514,6 +522,12 @@ def create_invoice():
             error="fk_conflict", message=f"No company with id {company_id}."
         ), 409
 
+    # Accounting ON for this company: an invoice must be in the company's own currency.
+    if document_type == "invoice":
+        problem = currency_problem(company_id, currency)
+        if problem:
+            return api_response(error="currency_mismatch", message=problem), 400
+
     # Auto-generate document number based on issued date
     invoice_number = _generate_document_number(document_type, issued)
 
@@ -547,6 +561,13 @@ def create_invoice():
             "invoice_created",
             invoice,
         )
+
+    # Books: post the journal in the same transaction (nothing is saved if this fails).
+    try:
+        sync_invoice_journal(invoice)
+    except AccountingError as exc:
+        db.session.rollback()
+        return api_response(error="accounting_error", message=str(exc)), 409
 
     try:
         db.session.commit()
@@ -583,8 +604,10 @@ def update_invoice(invoice_id: int):
         return api_response(error="invalid_json", message="Request body must be a JSON object."), 400
 
     # document_type and invoice_number cannot be changed after creation
-    if "document_type" in body:
+    # The invoice screen always sends document_type back when saving. Same value = fine; a different one is refused.
+    if "document_type" in body and body["document_type"] != invoice.document_type:
         return api_response(error="invalid_field", message="'document_type' cannot be changed after creation."), 400
+    body.pop("document_type", None)
     if "invoice_number" in body:
         return api_response(error="invalid_field", message="'invoice_number' cannot be changed after creation."), 400
 
@@ -609,6 +632,13 @@ def update_invoice(invoice_id: int):
         if Company.query.get(body["company_id"]) is None:
             return api_response(error="fk_conflict", message=f"No company with id {body['company_id']}."), 409
         new_company_id = body["company_id"]
+        # Stock is kept per company: an invoice already took stock from its company's shelf.
+        if invoice.document_type == "invoice" and new_company_id != invoice.company_id:
+            return api_response(
+                error="company_locked",
+                message="The company of an invoice cannot be changed, because its stock already came from "
+                        "that company. Delete this invoice and create a new one for the other company.",
+            ), 400
 
     new_currency = invoice.currency
     if "currency" in body:
@@ -665,6 +695,12 @@ def update_invoice(invoice_id: int):
             return api_response(error="invalid_type", message=err), 400
         new_signature = _items_signature(new_cleaned_items)
 
+    # Accounting ON: when the currency or company is being changed, it must still match.
+    if invoice.document_type == "invoice" and ("currency" in body or "company_id" in body):
+        problem = currency_problem(new_company_id, new_currency)
+        if problem:
+            return api_response(error="currency_mismatch", message=problem), 400
+
     before = {field: getattr(invoice, field) for field in AUDITED_SCALAR_FIELDS}
 
     invoice.client_id = new_client_id
@@ -716,6 +752,13 @@ def update_invoice(invoice_id: int):
             old_value=str(old_items_snapshot), new_value=str(new_signature),
         ))
 
+    # Books: reverse + repost if the invoice changed in a way that matters (same transaction).
+    try:
+        sync_invoice_journal(invoice)
+    except AccountingError as exc:
+        db.session.rollback()
+        return api_response(error="accounting_error", message=str(exc)), 409
+
     try:
         db.session.commit()
     except SQLAlchemyError as exc:
@@ -740,6 +783,14 @@ def delete_invoice(invoice_id: int):
     # Stock: give back what this invoice took (invoices only; quotations never moved stock).
     if invoice.document_type == "invoice":
         _log_delete_movements(invoice)
+
+    # Books: reverse the invoice's journal so it does not stay in the books after the
+    # invoice is gone. (Wave 2D adds the same for the invoice's payments.)
+    try:
+        sync_invoice_journal(invoice, deleting=True)
+    except AccountingError as exc:
+        db.session.rollback()
+        return api_response(error="accounting_error", message=str(exc)), 409
 
     db.session.delete(invoice)
 
@@ -934,6 +985,13 @@ def add_payment(invoice_id: int):
         old_value=_audit_str(old_amount_paid), new_value=_audit_str(invoice.amount_paid),
     ))
 
+    # A payment can turn the status into Paid, which is a posting status.
+    try:
+        sync_invoice_journal(invoice)
+    except AccountingError as exc:
+        db.session.rollback()
+        return api_response(error="accounting_error", message=str(exc)), 409
+
     try:
         db.session.commit()
     except SQLAlchemyError as exc:
@@ -978,6 +1036,12 @@ def delete_payment(payment_id: int):
         old_value=_audit_str(old_amount_paid), new_value=_audit_str(invoice.amount_paid),
     ))
     db.session.delete(payment)
+
+    try:
+        sync_invoice_journal(invoice)
+    except AccountingError as exc:
+        db.session.rollback()
+        return api_response(error="accounting_error", message=str(exc)), 409
 
     try:
         db.session.commit()
